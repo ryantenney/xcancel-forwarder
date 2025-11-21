@@ -42,7 +42,57 @@ Rather than blocking X/Twitter entirely, this redirects to a privacy-respecting 
 - **Local DNS control** (Pi-hole, router admin, or ability to run dnsmasq)
 - **SSL Certificate Setup** (optional but recommended - see below)
 
+## Setup Options
+
+Choose the setup method that works best for you:
+
+### 🎯 Option 1: Web Wizard (Easiest)
+
+Interactive browser-based configuration tool with visual feedback:
+
+1. Open `setup-wizard.html` in your browser (double-click or open with Firefox/Chrome)
+2. Answer questions about your network and preferences
+3. Download your custom `.env` file and setup instructions
+4. Follow the generated step-by-step guide
+
+Perfect for beginners or anyone who prefers a visual interface. No command-line experience required.
+
+### ⚡ Option 2: CLI Wizard (For Servers)
+
+Interactive command-line wizard for server environments:
+
+```bash
+python3 scripts/setup-wizard.py
+```
+
+Features:
+
+- Auto-detects network interfaces and available tools
+- Can automatically run `mkcert` to generate SSL certificates
+- Creates your `.env` file with validated settings
+- Offers to start containers immediately
+- Provides next steps specific to your configuration
+
+Best for headless servers, SSH sessions, or if you're comfortable with the terminal.
+
+### 📚 Option 3: Manual Setup (For Learning)
+
+Follow the detailed Quick Start guide below for full control and understanding of each step.
+
+Best for learning how everything works, advanced customization, or troubleshooting.
+
+---
+
 ## Quick Start
+
+**Choose Your Web Server:**
+
+This project supports both **nginx** and **Caddy**. Both work perfectly - the difference is configuration complexity:
+
+- **nginx** (default): Battle-tested, widely used, slightly more complex config
+- **Caddy** (simpler): Modern, automatic HTTPS, 4-line config vs 27 lines
+
+**Instructions below use nginx.** For Caddy, see [docs/CADDY_ALTERNATIVE.md](docs/CADDY_ALTERNATIVE.md)
 
 ### 1. Clone and Configure
 
@@ -83,14 +133,26 @@ See `docker-compose.yaml` comments for details.
 
 For HTTPS interception without browser warnings, you need a self-signed CA and certificates.
 
-**Quick version:**
+**Two approaches:**
+
+**Option A: mkcert (Simple - Recommended)**
+
+```bash
+brew install mkcert
+mkcert -install
+mkcert twitter.com x.com "*.twitter.com" "*.x.com" t.co "*.t.co"
+```
+
+Automatically creates and installs CA, generates trusted certificates. See [docs/SSL_SETUP_MKCERT.md](docs/SSL_SETUP_MKCERT.md)
+
+**Option B: Manual OpenSSL (Advanced)**
 
 1. Create a self-signed Certificate Authority
 2. Generate a certificate for twitter.com/x.com/t.co
 3. Install your CA as trusted on all devices
 4. Place certificates in `nginx/ssl/`
 
-**Detailed instructions:** See [docs/SSL_SETUP.md](docs/SSL_SETUP.md)
+Full control over certificate parameters. See [docs/SSL_SETUP.md](docs/SSL_SETUP.md)
 
 **Skip SSL?** Remove or comment out the SSL-related lines in `nginx/conf.d/xcancel-redirect.conf` (lines 3, 5, 9, 13-18, 20-21). Only HTTP (port 80) will work.
 
@@ -149,23 +211,30 @@ curl -I https://twitter.com
 
 ```
 .
-├── docker-compose.yaml        # Container orchestration
+├── setup-wizard.html          # Web-based setup wizard
+├── docker-compose.yaml        # nginx container orchestration
+├── docker-compose.caddy.yaml  # Caddy alternative (simpler)
 ├── .env.example               # Environment template
 ├── nginx/
 │   ├── nginx.conf            # Main nginx config
 │   ├── conf.d/
 │   │   └── xcancel-redirect.conf  # Redirect rules
 │   └── ssl/                  # SSL certificates (not in git)
-│       └── README.md
+├── caddy/
+│   ├── Caddyfile             # Caddy config (4 lines!)
+│   └── ssl/                  # SSL certificates (not in git)
 ├── dnsmasq/
 │   └── dnsmasq.conf          # Optional DNS server config
 ├── docs/
-│   ├── SSL_SETUP.md          # Certificate generation guide
+│   ├── SSL_SETUP_MKCERT.md   # Easy SSL with mkcert
+│   ├── SSL_SETUP.md          # Manual SSL with OpenSSL
+│   ├── CADDY_ALTERNATIVE.md  # Using Caddy instead of nginx
 │   ├── PIHOLE_SETUP.md       # Pi-hole configuration
 │   ├── DNSMASQ_SETUP.md      # dnsmasq configuration
 │   ├── OTHER_DNS.md          # Other DNS options
 │   └── TESTING.md            # Testing and verification
 └── scripts/
+    ├── setup-wizard.py       # CLI setup wizard
     └── test-redirect.sh      # Quick test script
 ```
 

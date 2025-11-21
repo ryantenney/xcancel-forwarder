@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>X/Twitter → xcancel Setup Wizard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .progress-bar {
+            background: #f0f0f0;
+            height: 4px;
+            position: relative;
+        }
+
+        .progress-fill {
+            background: #667eea;
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .step {
+            display: none;
+        }
+
+        .step.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .step h2 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.8em;
+        }
+
+        .step p {
+            color: #666;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .option-group {
+            margin-bottom: 30px;
+        }
+
+        .option-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .option {
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .option:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        .option.selected {
+            border-color: #667eea;
+            background: #f0f3ff;
+        }
+
+        .option input[type="radio"] {
+            margin-right: 10px;
+        }
+
+        .option h3 {
+            color: #333;
+            margin-bottom: 5px;
+            font-size: 1.2em;
+        }
+
+        .option .desc {
+            color: #666;
+            font-size: 0.95em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 1em;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group .hint {
+            font-size: 0.9em;
+            color: #999;
+            margin-top: 5px;
+        }
+
+        .conditional {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .conditional.visible {
+            display: block;
+        }
+
+        .buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+
+        button {
+            padding: 12px 30px;
+            font-size: 1em;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-back {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-back:hover:not(:disabled) {
+            background: #e0e0e0;
+        }
+
+        .btn-next {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-next:hover:not(:disabled) {
+            background: #5568d3;
+        }
+
+        .review-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .review-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .review-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .review-item:last-child {
+            border-bottom: none;
+        }
+
+        .review-item .label {
+            font-weight: 600;
+            color: #666;
+        }
+
+        .review-item .value {
+            color: #333;
+        }
+
+        .download-section {
+            text-align: center;
+            padding: 40px 0;
+        }
+
+        .download-section h2 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .download-btn {
+            background: #667eea;
+            color: white;
+            padding: 15px 40px;
+            font-size: 1.1em;
+            border-radius: 8px;
+            text-decoration: none;
+            display: inline-block;
+            margin: 10px;
+            transition: all 0.2s;
+        }
+
+        .download-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            overflow-x: auto;
+            margin: 20px 0;
+            position: relative;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+        }
+
+        .copy-btn:hover {
+            background: #5568d3;
+        }
+
+        .success-icon {
+            font-size: 4em;
+            color: #52c41a;
+            margin-bottom: 20px;
+        }
+
+        .info-box {
+            background: #e6f7ff;
+            border-left: 4px solid #1890ff;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .info-box.warning {
+            background: #fffbe6;
+            border-left-color: #faad14;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🦅 X/Twitter → xcancel</h1>
+            <p>Setup Wizard</p>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressBar"></div>
+        </div>
+
+        <div class="content">
+            <!-- Step 1: Welcome -->
+            <div class="step active" id="step1">
+                <h2>Welcome!</h2>
+                <p>This wizard will help you configure your local network to transparently redirect all X/Twitter traffic to xcancel.com - a privacy-respecting Twitter frontend.</p>
+
+                <div class="info-box">
+                    <strong>What is xcancel?</strong><br>
+                    A privacy-respecting Twitter/X frontend that lets you view tweets, threads, and profiles without tracking, ads, or supporting X's current management.
+                </div>
+
+                <p>We'll walk through:</p>
+                <ul style="margin-left: 20px; line-height: 2;">
+                    <li>Choosing your web server (nginx or Caddy)</li>
+                    <li>Network configuration</li>
+                    <li>SSL certificate setup</li>
+                    <li>DNS configuration</li>
+                </ul>
+
+                <div class="buttons">
+                    <button class="btn-back" disabled>Back</button>
+                    <button class="btn-next" onclick="nextStep()">Get Started</button>
+                </div>
+            </div>
+
+            <!-- Step 2: Web Server -->
+            <div class="step" id="step2">
+                <h2>Choose Web Server</h2>
+                <p>Both options work perfectly - the difference is configuration complexity.</p>
+
+                <div class="option-group">
+                    <div class="option" onclick="selectOption('webServer', 'nginx', this)">
+                        <input type="radio" name="webServer" value="nginx">
+                        <div>
+                            <h3>nginx</h3>
+                            <p class="desc">Battle-tested, widely used, industry standard</p>
+                        </div>
+                    </div>
+
+                    <div class="option selected" onclick="selectOption('webServer', 'caddy', this)">
+                        <input type="radio" name="webServer" value="caddy" checked>
+                        <div>
+                            <h3>Caddy (Recommended)</h3>
+                            <p class="desc">Modern, automatic HTTPS, 4-line config vs 27 lines</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="buttons">
+                    <button class="btn-back" onclick="prevStep()">Back</button>
+                    <button class="btn-next" onclick="nextStep()">Next</button>
+                </div>
+            </div>
+
+            <!-- Step 3: Networking -->
+            <div class="step" id="step3">
+                <h2>Network Configuration</h2>
+                <p>How should the container connect to your network?</p>
+
+                <div class="option-group">
+                    <div class="option selected" onclick="selectOption('networking', 'bridge', this); toggleConditional('macvlanConfig', false)">
+                        <input type="radio" name="networking" value="bridge" checked>
+                        <div>
+                            <h3>Bridge (Simple)</h3>
+                            <p class="desc">Uses host's IP with port forwarding. Easier setup.</p>
+                        </div>
+                    </div>
+
+                    <div class="option" onclick="selectOption('networking', 'macvlan', this); toggleConditional('macvlanConfig', true)">
+                        <input type="radio" name="networking" value="macvlan">
+                        <div>
+                            <h3>Macvlan (Dedicated IP)</h3>
+                            <p class="desc">Container gets its own IP on your LAN. Better for Pi-hole/dnsmasq.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="conditional" id="macvlanConfig">
+                    <h3>Macvlan Configuration</h3>
+                    <div class="form-group">
+                        <label>Network Interface</label>
+                        <input type="text" id="networkInterface" value="eth0" placeholder="e.g., eth0, ens33, enp3s0">
+                        <div class="hint">Find with: ip link show (Linux) or ifconfig (macOS)</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>LAN Subnet (CIDR)</label>
+                        <input type="text" id="lanSubnet" value="192.168.1.0/24" placeholder="e.g., 192.168.1.0/24">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Gateway IP</label>
+                        <input type="text" id="lanGateway" value="192.168.1.1" placeholder="e.g., 192.168.1.1">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Container IP Address</label>
+                        <input type="text" id="serverIp" value="192.168.1.100" placeholder="e.g., 192.168.1.100">
+                        <div class="hint">Choose a free IP on your LAN</div>
+                    </div>
+                </div>
+
+                <div class="buttons">
+                    <button class="btn-back" onclick="prevStep()">Back</button>
+                    <button class="btn-next" onclick="nextStep()">Next</button>
+                </div>
+            </div>
+
+            <!-- Step 4: SSL -->
+            <div class="step" id="step4">
+                <h2>SSL Configuration</h2>
+                <p>SSL certificates allow HTTPS interception without browser warnings.</p>
+
+                <div class="option-group">
+                    <div class="option" onclick="selectOption('ssl', 'skip', this)">
+                        <input type="radio" name="ssl" value="skip">
+                        <div>
+                            <h3>Skip SSL</h3>
+                            <p class="desc">HTTP-only redirect. Simplest, but HTTPS links will show warnings.</p>
+                        </div>
+                    </div>
+
+                    <div class="option selected" onclick="selectOption('ssl', 'mkcert', this)">
+                        <input type="radio" name="ssl" value="mkcert" checked>
+                        <div>
+                            <h3>mkcert (Recommended)</h3>
+                            <p class="desc">Automatic CA and certificate generation. 3 commands to working HTTPS.</p>
+                        </div>
+                    </div>
+
+                    <div class="option" onclick="selectOption('ssl', 'manual', this)">
+                        <input type="radio" name="ssl" value="manual">
+                        <div>
+                            <h3>Manual OpenSSL</h3>
+                            <p class="desc">Full control over certificate parameters. Advanced users.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="buttons">
+                    <button class="btn-back" onclick="prevStep()">Back</button>
+                    <button class="btn-next" onclick="nextStep()">Next</button>
+                </div>
+            </div>
+
+            <!-- Step 5: DNS -->
+            <div class="step" id="step5">
+                <h2>DNS Configuration</h2>
+                <p>How will you configure DNS to point twitter.com/x.com to your proxy?</p>
+
+                <div class="option-group">
+                    <div class="option selected" onclick="selectOption('dns', 'pihole', this)">
+                        <input type="radio" name="dns" value="pihole" checked>
+                        <div>
+                            <h3>Pi-hole</h3>
+                            <p class="desc">Network-wide ad blocking with DNS override capability.</p>
+                        </div>
+                    </div>
+
+                    <div class="option" onclick="selectOption('dns', 'unifi', this)">
+                        <input type="radio" name="dns" value="unifi">
+                        <div>
+                            <h3>UniFi/Ubiquiti</h3>
+                            <p class="desc">UniFi Dream Machine or USG with custom DNS entries.</p>
+                        </div>
+                    </div>
+
+                    <div class="option" onclick="selectOption('dns', 'dnsmasq', this)">
+                        <input type="radio" name="dns" value="dnsmasq">
+                        <div>
+                            <h3>Included dnsmasq</h3>
+                            <p class="desc">Run a DNS server container (requires macvlan networking).</p>
+                        </div>
+                    </div>
+
+                    <div class="option" onclick="selectOption('dns', 'router', this)">
+                        <input type="radio" name="dns" value="router">
+                        <div>
+                            <h3>Router Built-in DNS</h3>
+                            <p class="desc">Use your router's DNS override features.</p>
+                        </div>
+                    </div>
+
+                    <div class="option" onclick="selectOption('dns', 'manual', this)">
+                        <input type="radio" name="dns" value="manual">
+                        <div>
+                            <h3>Manual (Hosts File)</h3>
+                            <p class="desc">Edit /etc/hosts on each device individually.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="buttons">
+                    <button class="btn-back" onclick="prevStep()">Back</button>
+                    <button class="btn-next" onclick="generateConfigs()">Review & Generate</button>
+                </div>
+            </div>
+
+            <!-- Step 6: Review & Download -->
+            <div class="step" id="step6">
+                <h2>Review Configuration</h2>
+                <p>Review your selections and download generated configs.</p>
+
+                <div class="review-section">
+                    <h3>Your Configuration</h3>
+                    <div class="review-item">
+                        <span class="label">Web Server:</span>
+                        <span class="value" id="reviewWebServer"></span>
+                    </div>
+                    <div class="review-item">
+                        <span class="label">Networking:</span>
+                        <span class="value" id="reviewNetworking"></span>
+                    </div>
+                    <div class="review-item">
+                        <span class="label">SSL:</span>
+                        <span class="value" id="reviewSsl"></span>
+                    </div>
+                    <div class="review-item">
+                        <span class="label">DNS:</span>
+                        <span class="value" id="reviewDns"></span>
+                    </div>
+                </div>
+
+                <div class="download-section">
+                    <div class="success-icon">✓</div>
+                    <h2>Configuration Generated!</h2>
+                    <p>Download your customized configuration files below.</p>
+
+                    <button class="download-btn" onclick="downloadEnvFile()">📄 Download .env</button>
+                    <button class="download-btn" onclick="downloadInstructions()">📋 Download Instructions</button>
+                    <button class="download-btn" onclick="copyStartCommand()">📋 Copy Start Command</button>
+                </div>
+
+                <div id="nextStepsSection"></div>
+
+                <div class="buttons">
+                    <button class="btn-back" onclick="prevStep()">Back</button>
+                    <button class="btn-next" onclick="location.reload()">Start Over</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 1;
+        const totalSteps = 6;
+        const config = {
+            webServer: 'caddy',
+            networking: 'bridge',
+            ssl: 'mkcert',
+            dns: 'pihole'
+        };
+
+        function updateProgress() {
+            const progress = ((currentStep - 1) / (totalSteps - 1)) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+        }
+
+        function showStep(step) {
+            document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+            document.getElementById('step' + step).classList.add('active');
+            currentStep = step;
+            updateProgress();
+            window.scrollTo(0, 0);
+        }
+
+        function nextStep() {
+            if (currentStep < totalSteps) {
+                showStep(currentStep + 1);
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 1) {
+                showStep(currentStep - 1);
+            }
+        }
+
+        function selectOption(key, value, element) {
+            config[key] = value;
+
+            // Update UI
+            const parent = element.parentElement;
+            parent.querySelectorAll('.option').forEach(opt => opt.classList.remove('selected'));
+            element.classList.add('selected');
+
+            // Update radio
+            element.querySelector('input[type="radio"]').checked = true;
+        }
+
+        function toggleConditional(id, show) {
+            const el = document.getElementById(id);
+            if (show) {
+                el.classList.add('visible');
+            } else {
+                el.classList.remove('visible');
+            }
+        }
+
+        function generateConfigs() {
+            // Capture form values
+            if (config.networking === 'macvlan') {
+                config.networkInterface = document.getElementById('networkInterface').value;
+                config.lanSubnet = document.getElementById('lanSubnet').value;
+                config.lanGateway = document.getElementById('lanGateway').value;
+                config.serverIp = document.getElementById('serverIp').value;
+            }
+
+            // Update review
+            document.getElementById('reviewWebServer').textContent = config.webServer;
+            document.getElementById('reviewNetworking').textContent = config.networking;
+            document.getElementById('reviewSsl').textContent = config.ssl;
+            document.getElementById('reviewDns').textContent = config.dns;
+
+            // Generate next steps
+            generateNextSteps();
+
+            nextStep();
+        }
+
+        function generateEnvFile() {
+            let content = '# X/Twitter → xcancel Configuration\n';
+            content += '# Generated by setup wizard\n\n';
+            content += '# Timezone\n';
+            content += 'TZ=America/New_York\n\n';
+
+            if (config.networking === 'macvlan') {
+                content += '# Macvlan Networking\n';
+                content += `NETWORK_INTERFACE=${config.networkInterface}\n`;
+                content += `LAN_SUBNET=${config.lanSubnet}\n`;
+                content += `LAN_GATEWAY=${config.lanGateway}\n\n`;
+
+                if (config.webServer === 'nginx') {
+                    content += `NGINX_IP=${config.serverIp}\n`;
+                } else {
+                    content += `CADDY_IP=${config.serverIp}\n`;
+                }
+
+                if (config.dns === 'dnsmasq') {
+                    const parts = config.serverIp.split('.');
+                    const dnsmasqIp = parts.slice(0, 3).join('.') + '.' + (parseInt(parts[3]) + 1);
+                    content += `DNSMASQ_IP=${dnsmasqIp}\n`;
+                    content += 'UPSTREAM_DNS=1.1.1.1\n';
+                }
+            } else {
+                content += '# Bridge Networking\n';
+                content += 'HTTP_PORT=80\n';
+                content += 'HTTPS_PORT=443\n';
+            }
+
+            return content;
+        }
+
+        function generateInstructions() {
+            let content = '# X/Twitter → xcancel Setup Instructions\n\n';
+            content += '## Configuration Summary\n\n';
+            content += `- Web Server: ${config.webServer}\n`;
+            content += `- Networking: ${config.networking}\n`;
+            content += `- SSL: ${config.ssl}\n`;
+            content += `- DNS: ${config.dns}\n\n`;
+
+            content += '## Next Steps\n\n';
+            content += '### 1. Place Configuration Files\n\n';
+            content += 'Save the downloaded .env file to your xcancel-forwarder directory.\n\n';
+
+            if (config.ssl === 'mkcert') {
+                content += '### 2. Generate SSL Certificates\n\n';
+                content += '```bash\n';
+                content += 'brew install mkcert\n';
+                content += 'mkcert -install\n';
+                content += 'mkcert twitter.com x.com "*.twitter.com" "*.x.com" t.co "*.t.co"\n\n';
+                content += `# Copy certificates to ${config.webServer}/ssl/\n`;
+                content += `cp twitter.com+5.pem ${config.webServer}/ssl/twitter_bundle.pem\n`;
+                content += `cp twitter.com+5-key.pem ${config.webServer}/ssl/twitter_key.pem\n`;
+                content += '```\n\n';
+                content += 'See docs/SSL_SETUP_MKCERT.md for detailed instructions.\n\n';
+            } else if (config.ssl === 'manual') {
+                content += '### 2. Generate SSL Certificates\n\n';
+                content += 'Follow the manual OpenSSL guide:\n';
+                content += 'See docs/SSL_SETUP.md for detailed instructions.\n\n';
+            }
+
+            const stepNum = config.ssl === 'skip' ? 2 : 3;
+            content += `### ${stepNum}. Configure DNS\n\n`;
+
+            const dnsGuides = {
+                pihole: 'docs/PIHOLE_SETUP.md',
+                unifi: 'docs/OTHER_DNS.md#unifi-ubiquiti',
+                dnsmasq: 'docs/DNSMASQ_SETUP.md',
+                router: 'docs/OTHER_DNS.md',
+                manual: 'docs/OTHER_DNS.md#per-device-configuration-without-dns-server'
+            };
+
+            content += `Configure ${config.dns} to point twitter.com, x.com, and t.co to your proxy.\n\n`;
+            content += `See ${dnsGuides[config.dns]} for instructions.\n\n`;
+
+            content += `### ${stepNum + 1}. Start the Service\n\n`;
+            content += '```bash\n';
+            if (config.webServer === 'nginx') {
+                content += 'docker compose up -d\n';
+            } else {
+                content += 'docker compose -f docker-compose.caddy.yaml up -d\n';
+            }
+            content += '```\n\n';
+
+            content += `### ${stepNum + 2}. Test\n\n`;
+            content += '```bash\n';
+            content += './scripts/test-redirect.sh\n';
+            content += '```\n\n';
+            content += 'See docs/TESTING.md for detailed testing instructions.\n';
+
+            return content;
+        }
+
+        function generateNextSteps() {
+            const container = document.getElementById('nextStepsSection');
+            let html = '<div class="info-box"><h3>Next Steps:</h3><ol style="margin-left: 20px; line-height: 2;">';
+
+            html += `<li>Download the .env file above and place it in your xcancel-forwarder directory</li>`;
+
+            if (config.ssl === 'mkcert') {
+                html += '<li>Install mkcert and generate certificates (see instructions)</li>';
+            } else if (config.ssl === 'manual') {
+                html += '<li>Generate SSL certificates manually (see docs/SSL_SETUP.md)</li>';
+            }
+
+            html += `<li>Configure DNS to point domains to your proxy</li>`;
+            html += `<li>Start the service with Docker Compose</li>`;
+            html += '<li>Test the setup with ./scripts/test-redirect.sh</li>';
+            html += '</ol></div>';
+
+            container.innerHTML = html;
+        }
+
+        function downloadEnvFile() {
+            const content = generateEnvFile();
+            downloadFile('.env', content);
+        }
+
+        function downloadInstructions() {
+            const content = generateInstructions();
+            downloadFile('SETUP_INSTRUCTIONS.md', content);
+        }
+
+        function downloadFile(filename, content) {
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+
+        function copyStartCommand() {
+            let cmd;
+            if (config.webServer === 'nginx') {
+                cmd = 'docker compose up -d';
+            } else {
+                cmd = 'docker compose -f docker-compose.caddy.yaml up -d';
+            }
+
+            navigator.clipboard.writeText(cmd).then(() => {
+                alert('Start command copied to clipboard!');
+            });
+        }
+
+        // Initialize
+        updateProgress();
+    </script>
+</body>
+</html>
