@@ -657,7 +657,12 @@
 
         function nextStep() {
             if (currentStep < totalSteps) {
-                showStep(currentStep + 1);
+                // Handle step 5 going to step 5.5 if dnsmasq selected
+                if (currentStep === 5 && config.dns === 'dnsmasq') {
+                    showStep(5.5);
+                } else {
+                    showStep(currentStep + 1);
+                }
             }
         }
 
