@@ -6,11 +6,18 @@ nginx/ssl/*.pem
 nginx/ssl/*.key
 nginx/ssl/*.crt
 nginx/ssl/*.csr
+caddy/ssl/*.pem
+caddy/ssl/*.key
+caddy/ssl/*.crt
+caddy/ssl/*.csr
 
-# Keep the directory but ignore contents except README
+# Keep the directories but ignore contents except README
 nginx/ssl/*
 !nginx/ssl/.gitkeep
 !nginx/ssl/README.md
+caddy/ssl/*
+!caddy/ssl/.gitkeep
+!caddy/ssl/README.md
 
 # Nginx logs
 nginx/logs/

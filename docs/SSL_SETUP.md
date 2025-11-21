@@ -1,6 +1,8 @@
-# SSL Certificate Setup
+# SSL Certificate Setup (Manual OpenSSL)
 
 This guide walks through creating a self-signed Certificate Authority (CA) and generating SSL certificates for intercepting HTTPS traffic to twitter.com/x.com.
+
+> **Looking for something simpler?** Check out [SSL_SETUP_MKCERT.md](SSL_SETUP_MKCERT.md) for an automated approach using mkcert that handles CA creation and installation automatically. This manual guide is for those who want full control or can't install mkcert.
 
 ## Overview
 

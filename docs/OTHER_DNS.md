@@ -93,7 +93,28 @@ local-data: "x.com A 192.168.1.100"
 
 ### UniFi (Ubiquiti)
 
-UniFi doesn't have a built-in UI for custom DNS entries, but you can use SSH:
+#### Option A: Network UI (UniFi Network 8.0+)
+
+Newer UniFi Network versions have a built-in UI for local DNS:
+
+1. UniFi Network → Settings → Networks
+2. Select your LAN network → Advanced
+3. Scroll to "DHCP Name Server" → Custom
+4. Enable "Manual" and add your gateway IP as DNS server
+5. Then go to Settings → System → Advanced
+6. Under "Custom DNS Entries" (or "Local DNS Records"):
+   - Click "Add Entry"
+   - For each domain:
+     - **Record Type**: A
+     - **Hostname**: `twitter.com` (or `x.com`, `t.co`)
+     - **IP Address**: `192.168.1.100`
+   - Save
+
+7. Apply changes and wait for provisioning
+
+#### Option B: SSH/CLI (All Versions)
+
+For older versions or if you prefer command line:
 
 ```bash
 # SSH to your UniFi gateway
@@ -113,7 +134,7 @@ exit
 sudo /etc/init.d/dnsmasq force-reload
 ```
 
-Note: These settings may be lost on firmware updates.
+**Note**: SSH method settings may be lost on firmware updates. UI method persists.
 
 ### MikroTik RouterOS
 

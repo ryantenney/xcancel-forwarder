@@ -1,0 +1,18 @@
+# Caddy configuration for X/Twitter → xcancel redirect
+# Much simpler than nginx!
+
+# Handle all Twitter/X domains
+twitter.com, www.twitter.com, x.com, www.x.com, t.co, www.t.co {
+	# Use custom SSL certificates
+	# Comment out this line to skip HTTPS (HTTP-only redirect)
+	tls /etc/caddy/ssl/twitter_bundle.pem /etc/caddy/ssl/twitter_key.pem
+
+	# Redirect to xcancel, preserving the URI path
+	redir https://xcancel.com{uri} permanent
+}
+
+# That's it! Caddy automatically handles:
+# - HTTP/2 and HTTP/3 (QUIC)
+# - Security headers
+# - Logging
+# - Graceful reloads
