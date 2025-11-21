@@ -166,6 +166,6 @@ fi
 echo "Try visiting these URLs in your browser:"
 echo "  • https://twitter.com"
 echo "  • https://x.com"
-echo "  • https://twitter.com/elonmusk"
+echo "  • https://twitter.com/NASA"
 echo
 echo "For detailed troubleshooting, see docs/TESTING.md"

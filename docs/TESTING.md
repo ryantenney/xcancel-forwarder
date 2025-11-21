@@ -148,11 +148,11 @@ curl -I http://twitter.com
 # ...
 
 # Test with a path
-curl -I http://twitter.com/elonmusk
+curl -I http://twitter.com/NASA
 
 # Expected output:
 # HTTP/1.1 301 Moved Permanently
-# Location: https://xcancel.com/elonmusk
+# Location: https://xcancel.com/NASA
 ```
 
 ### Test All Domains
@@ -260,7 +260,7 @@ Most important test - does it work in a real browser?
 
 Visit these URLs - all should redirect to xcancel:
 
-- `https://twitter.com/elonmusk`
+- `https://twitter.com/NASA`
 - `https://x.com/verified`
 - `https://twitter.com/i/trends`
 - `https://t.co/xxxxxxxxxx` (any t.co short link)
