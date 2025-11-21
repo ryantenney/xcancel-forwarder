@@ -1,0 +1,85 @@
+version: "3.9"
+
+# Choose ONE of the following networking configurations:
+#
+# Option 1: Macvlan (Recommended for Pi-hole/dnsmasq integration)
+#   - Gives containers dedicated IPs on your LAN
+#   - Allows DNS servers to point directly to nginx IP
+#   - Uncomment the macvlan_lan network and use it in services
+#
+# Option 2: Bridge (Simpler, uses port forwarding)
+#   - Standard Docker networking
+#   - Uses host's IP with port forwarding
+#   - Uncomment the bridge network and ports in nginx service
+
+networks:
+  # Option 1: Macvlan networking (uncomment if using)
+  # macvlan_lan:
+  #   driver: macvlan
+  #   driver_opts:
+  #     parent: ${NETWORK_INTERFACE:-eth0}
+  #   ipam:
+  #     config:
+  #       - subnet: ${LAN_SUBNET:-192.168.1.0/24}
+  #         gateway: ${LAN_GATEWAY:-192.168.1.1}
+  #         ip_range: ${IP_RANGE:-192.168.1.64/28}
+  #         aux_addresses:
+  #           host: ${HOST_IP:-192.168.1.10}
+
+  # Option 2: Bridge networking (default, simpler)
+  default:
+    driver: bridge
+
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: xcancel-nginx
+    restart: unless-stopped
+
+    # Networking configuration
+    # For macvlan: comment out 'ports' and uncomment 'networks' with ipv4_address
+    # For bridge: use 'ports' below
+
+    # Bridge networking (default)
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp"  # HTTP/3 (QUIC)
+
+    # Macvlan networking (uncomment if using macvlan)
+    # networks:
+    #   macvlan_lan:
+    #     ipv4_address: ${NGINX_IP:-192.168.1.100}
+
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/logs:/var/log/nginx
+
+    environment:
+      - TZ=${TZ:-America/New_York}
+
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  # Optional: dnsmasq DNS server
+  # Uncomment if you don't have Pi-hole or another DNS solution
+  # NOTE: Only works with macvlan networking!
+
+  # dnsmasq:
+  #   image: jpillora/dnsmasq:latest
+  #   container_name: xcancel-dnsmasq
+  #   restart: unless-stopped
+  #   networks:
+  #     macvlan_lan:
+  #       ipv4_address: ${DNSMASQ_IP:-192.168.1.101}
+  #   volumes:
+  #     - ./dnsmasq/dnsmasq.conf:/etc/dnsmasq.conf:ro
+  #   environment:
+  #     - TZ=${TZ:-America/New_York}
+  #   cap_add:
+  #     - NET_ADMIN
