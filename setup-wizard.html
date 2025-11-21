@@ -826,8 +826,12 @@
             content += `- DNS: ${config.dns}\n\n`;
 
             content += '## Next Steps\n\n';
-            content += '### 1. Place Configuration Files\n\n';
-            content += 'Save the downloaded .env file to your xcancel-forwarder directory.\n\n';
+            content += '### 1. Extract and Place Configuration Files\n\n';
+            content += 'Extract the ZIP to your xcancel-forwarder directory, then:\n\n';
+            content += '```bash\n';
+            content += '# Rename env to .env (dot-files are hidden by default)\n';
+            content += 'mv env .env\n';
+            content += '```\n\n';
 
             if (config.ssl === 'mkcert') {
                 content += '### 2. Generate SSL Certificates\n\n';
@@ -883,7 +887,7 @@
             let html = '<div class="info-box"><h3>Next Steps:</h3><ol style="margin-left: 20px; line-height: 2;">';
 
             html += `<li>Download the configuration files above (or download all as ZIP)</li>`;
-            html += `<li>Extract/place the files in your xcancel-forwarder directory</li>`;
+            html += `<li>Extract to your xcancel-forwarder directory and rename <code>env</code> to <code>.env</code></li>`;
 
             if (config.ssl === 'mkcert') {
                 html += '<li>Install mkcert and generate certificates (see instructions)</li>';
@@ -925,9 +929,9 @@
 
                 const zip = new JSZip();
 
-                // Add .env file
+                // Add .env file (named 'env' so it's visible after unzipping)
                 const envContent = generateEnvFile();
-                zip.file('.env', envContent);
+                zip.file('env', envContent);
 
                 // Add docker-compose file
                 const { filename, content } = generateDockerCompose();
