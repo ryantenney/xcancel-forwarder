@@ -660,6 +660,9 @@
                 // Handle step 5 going to step 5.5 if dnsmasq selected
                 if (currentStep === 5 && config.dns === 'dnsmasq') {
                     showStep(5.5);
+                } else if (currentStep === 5.5) {
+                    // Handle step 5.5 going to step 6
+                    showStep(6);
                 } else {
                     showStep(currentStep + 1);
                 }
