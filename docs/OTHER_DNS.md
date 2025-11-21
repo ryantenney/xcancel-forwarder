@@ -399,7 +399,10 @@ curl -I http://twitter.com
 1. **Clear DNS caches:**
    - On DNS server: Restart DNS service
    - On clients: See [PIHOLE_SETUP.md](PIHOLE_SETUP.md) for flush commands
-   - In browsers: Clear DNS cache
+   - In browsers:
+     - **Chrome/Edge**: Visit `chrome://net-internals/#dns` or `edge://net-internals/#dns` and click "Clear host cache"
+     - **Firefox**: Visit `about:networking#dns` to view cache (restart browser to clear)
+     - **Safari**: Restart browser or run `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder` in Terminal
 
 2. **Verify clients are using your DNS:**
    ```bash
