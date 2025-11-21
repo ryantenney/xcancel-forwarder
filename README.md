@@ -50,10 +50,16 @@ Choose the setup method that works best for you:
 
 Interactive browser-based configuration tool with visual feedback:
 
-1. Open `setup-wizard.html` in your browser (double-click or open with Firefox/Chrome)
-2. Answer questions about your network and preferences
-3. Download your custom `.env` file and setup instructions
-4. Follow the generated step-by-step guide
+**[🚀 Launch Web Wizard](https://ryantenney.github.io/xcancel-forwarder/setup-wizard.html)**
+
+Or open `setup-wizard.html` locally in your browser (double-click or open with Firefox/Chrome)
+
+The wizard will:
+
+1. Guide you through network and preference questions
+2. Generate customized configuration files
+3. Let you download everything as a ZIP or individually
+4. Provide step-by-step instructions for your setup
 
 Perfect for beginners or anyone who prefers a visual interface. No command-line experience required.
 

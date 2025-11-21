@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>X/Twitter → xcancel Setup Wizard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -564,9 +565,14 @@
                     <h2>Configuration Generated!</h2>
                     <p>Download your customized configuration files below.</p>
 
-                    <button class="download-btn" onclick="downloadEnvFile()">📄 Download .env</button>
-                    <button class="download-btn" onclick="downloadInstructions()">📋 Download Instructions</button>
-                    <button class="download-btn" onclick="copyStartCommand()">📋 Copy Start Command</button>
+                    <button class="download-btn" onclick="downloadAllAsZip()" style="background: #52c41a; font-size: 1.2em;">📦 Download All as ZIP</button>
+                    <br><br>
+                    <div style="opacity: 0.7;">
+                        <small>Or download individually:</small><br>
+                        <button class="download-btn" onclick="downloadEnvFile()">📄 .env</button>
+                        <button class="download-btn" onclick="downloadDockerCompose()">🐳 docker-compose</button>
+                        <button class="download-btn" onclick="downloadInstructions()">📋 Instructions</button>
+                    </div>
                 </div>
 
                 <div id="nextStepsSection"></div>
@@ -689,6 +695,128 @@
             return content;
         }
 
+        function generateDockerCompose() {
+            const isCaddy = config.webServer === 'caddy';
+            const isMacvlan = config.networking === 'macvlan';
+            const includeDnsmasq = config.dns === 'dnsmasq';
+            const serviceName = isCaddy ? 'caddy' : 'nginx';
+
+            let content = 'version: "3.9"\n\n';
+
+            // Header comments
+            if (isCaddy) {
+                content += '# Caddy alternative to nginx\n';
+                content += '# Use this file with: docker compose -f docker-compose.caddy.yaml up -d\n\n';
+            }
+
+            content += '# Network configuration\n';
+            content += `# Generated with: ${config.networking} networking\n\n`;
+
+            // Networks section
+            content += 'networks:\n';
+            if (isMacvlan) {
+                content += '  macvlan_lan:\n';
+                content += '    driver: macvlan\n';
+                content += '    driver_opts:\n';
+                content += `      parent: ${config.networkInterface}\n`;
+                content += '    ipam:\n';
+                content += '      config:\n';
+                content += `        - subnet: ${config.lanSubnet}\n`;
+                content += `          gateway: ${config.lanGateway}\n\n`;
+            } else {
+                content += '  default:\n';
+                content += '    driver: bridge\n\n';
+            }
+
+            // Services section
+            content += 'services:\n';
+            content += `  ${serviceName}:\n`;
+            if (isCaddy) {
+                content += '    image: caddy:2-alpine\n';
+                content += '    container_name: xcancel-caddy\n';
+            } else {
+                content += '    image: nginx:1.27-alpine\n';
+                content += '    container_name: xcancel-nginx\n';
+            }
+            content += '    restart: unless-stopped\n\n';
+
+            // Networking for service
+            if (isMacvlan) {
+                content += '    # Macvlan networking - dedicated IP\n';
+                content += '    networks:\n';
+                content += '      macvlan_lan:\n';
+                content += `        ipv4_address: ${config.serverIp}\n\n`;
+            } else {
+                content += '    # Bridge networking - port forwarding\n';
+                content += '    ports:\n';
+                content += '      - "80:80"\n';
+                content += '      - "443:443"\n';
+                content += '      - "443:443/udp"  # HTTP/3 (QUIC)\n\n';
+            }
+
+            // Volumes
+            content += '    volumes:\n';
+            if (serviceName === 'nginx') {
+                content += '      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro\n';
+                content += '      - ./nginx/conf.d:/etc/nginx/conf.d:ro\n';
+                content += '      - ./nginx/ssl:/etc/nginx/ssl:ro\n';
+                content += '      - ./nginx/logs:/var/log/nginx\n';
+            } else {
+                content += '      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro\n';
+                content += '      - ./caddy/ssl:/etc/caddy/ssl:ro\n';
+                content += '      - caddy_data:/data\n';
+                content += '      - caddy_config:/config\n';
+            }
+
+            // Environment
+            content += '\n    environment:\n';
+            content += '      - TZ=${TZ:-America/New_York}\n\n';
+
+            // Health check
+            content += '    healthcheck:\n';
+            content += '      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]\n';
+            content += '      interval: 30s\n';
+            content += '      timeout: 3s\n';
+            content += '      retries: 3\n\n';
+
+            // Optional dnsmasq service
+            if (includeDnsmasq) {
+                if (!isMacvlan) {
+                    content += '  # NOTE: dnsmasq requires macvlan networking\n';
+                    content += '  # Current config uses bridge mode - dnsmasq will not work\n\n';
+                } else {
+                    const parts = config.serverIp.split('.');
+                    const dnsmasqIp = parts.slice(0, 3).join('.') + '.' + (parseInt(parts[3]) + 1);
+
+                    content += '  dnsmasq:\n';
+                    content += '    image: jpillora/dnsmasq:latest\n';
+                    content += '    container_name: xcancel-dnsmasq\n';
+                    content += '    restart: unless-stopped\n';
+                    content += '    networks:\n';
+                    content += '      macvlan_lan:\n';
+                    content += `        ipv4_address: ${dnsmasqIp}\n`;
+                    content += '    volumes:\n';
+                    content += '      - ./dnsmasq/dnsmasq.conf:/etc/dnsmasq.conf:ro\n';
+                    content += '    environment:\n';
+                    content += '      - TZ=${TZ:-America/New_York}\n';
+                    content += '    cap_add:\n';
+                    content += '      - NET_ADMIN\n\n';
+                }
+            }
+
+            // Volumes section for Caddy
+            if (isCaddy) {
+                content += 'volumes:\n';
+                content += '  caddy_data:\n';
+                content += '  caddy_config:\n';
+            }
+
+            return {
+                filename: isCaddy ? 'docker-compose.caddy.yaml' : 'docker-compose.yaml',
+                content: content
+            };
+        }
+
         function generateInstructions() {
             let content = '# X/Twitter → xcancel Setup Instructions\n\n';
             content += '## Configuration Summary\n\n';
@@ -754,7 +882,8 @@
             const container = document.getElementById('nextStepsSection');
             let html = '<div class="info-box"><h3>Next Steps:</h3><ol style="margin-left: 20px; line-height: 2;">';
 
-            html += `<li>Download the .env file above and place it in your xcancel-forwarder directory</li>`;
+            html += `<li>Download the configuration files above (or download all as ZIP)</li>`;
+            html += `<li>Extract/place the files in your xcancel-forwarder directory</li>`;
 
             if (config.ssl === 'mkcert') {
                 html += '<li>Install mkcert and generate certificates (see instructions)</li>';
@@ -763,7 +892,7 @@
             }
 
             html += `<li>Configure DNS to point domains to your proxy</li>`;
-            html += `<li>Start the service with Docker Compose</li>`;
+            html += `<li>Start the service with Docker Compose (see start command below)</li>`;
             html += '<li>Test the setup with ./scripts/test-redirect.sh</li>';
             html += '</ol></div>';
 
@@ -775,9 +904,73 @@
             downloadFile('.env', content);
         }
 
+        function downloadDockerCompose() {
+            const { filename, content } = generateDockerCompose();
+            downloadFile(filename, content);
+        }
+
         function downloadInstructions() {
             const content = generateInstructions();
             downloadFile('SETUP_INSTRUCTIONS.md', content);
+        }
+
+        async function downloadAllAsZip() {
+            const button = event.target;
+            const originalText = button.innerHTML;
+
+            try {
+                // Show loading state
+                button.innerHTML = '⏳ Creating ZIP...';
+                button.disabled = true;
+
+                const zip = new JSZip();
+
+                // Add .env file
+                const envContent = generateEnvFile();
+                zip.file('.env', envContent);
+
+                // Add docker-compose file
+                const { filename, content } = generateDockerCompose();
+                zip.file(filename, content);
+
+                // Add instructions
+                const instructions = generateInstructions();
+                zip.file('SETUP_INSTRUCTIONS.md', instructions);
+
+                // Generate ZIP file
+                const blob = await zip.generateAsync({ type: 'blob' });
+
+                // Download the ZIP
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'xcancel-config.zip';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+                // Show success state
+                button.innerHTML = '✓ Downloaded!';
+                button.style.background = '#52c41a';
+
+                // Reset after 2 seconds
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                }, 2000);
+            } catch (error) {
+                console.error('Error creating ZIP:', error);
+                button.innerHTML = '✗ Failed - Try Individual Downloads';
+                button.style.background = '#ff4d4f';
+                button.disabled = false;
+
+                // Reset after 3 seconds
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.style.background = '#52c41a';
+                }, 3000);
+            }
         }
 
         function downloadFile(filename, content) {
@@ -793,6 +986,9 @@
         }
 
         function copyStartCommand() {
+            const button = event.target;
+            const originalText = button.innerHTML;
+
             let cmd;
             if (config.webServer === 'nginx') {
                 cmd = 'docker compose up -d';
@@ -801,7 +997,21 @@
             }
 
             navigator.clipboard.writeText(cmd).then(() => {
-                alert('Start command copied to clipboard!');
+                button.innerHTML = '✓ Copied!';
+                button.style.background = '#52c41a';
+
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.style.background = '#667eea';
+                }, 2000);
+            }).catch(() => {
+                button.innerHTML = '✗ Failed to Copy';
+                button.style.background = '#ff4d4f';
+
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.style.background = '#667eea';
+                }, 2000);
             });
         }
 

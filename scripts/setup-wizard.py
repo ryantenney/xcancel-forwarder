@@ -391,6 +391,174 @@ class SetupWizard:
             self.config['dns'] = 'manual'
             self.config['dns_instructions'] = 'docs/OTHER_DNS.md#per-device-configuration-without-dns-server'
 
+    def generate_docker_compose(self):
+        """Generate docker-compose file based on configuration"""
+        is_caddy = self.config['web_server'] == 'caddy'
+        is_macvlan = self.config['networking'] == 'macvlan'
+        include_dnsmasq = self.config.get('include_dnsmasq', False)
+
+        # Choose the right filename
+        compose_file = 'docker-compose.caddy.yaml' if is_caddy else 'docker-compose.yaml'
+        service_name = 'caddy' if is_caddy else 'nginx'
+
+        content = ['version: "3.9"', '']
+
+        # Add header comments
+        if is_caddy:
+            content.extend([
+                '# Caddy alternative to nginx',
+                '# Use this file with: docker compose -f docker-compose.caddy.yaml up -d',
+                ''
+            ])
+
+        content.extend([
+            '# Network configuration',
+            f'# Generated with: {self.config["networking"]} networking',
+            ''
+        ])
+
+        # Networks section
+        content.append('networks:')
+
+        if is_macvlan:
+            # Macvlan network (uncommented)
+            content.extend([
+                '  macvlan_lan:',
+                '    driver: macvlan',
+                '    driver_opts:',
+                f'      parent: {self.config["network_interface"]}',
+                '    ipam:',
+                '      config:',
+                f'        - subnet: {self.config["lan_subnet"]}',
+                f'          gateway: {self.config["lan_gateway"]}',
+                ''
+            ])
+        else:
+            # Bridge network (default)
+            content.extend([
+                '  default:',
+                '    driver: bridge',
+                ''
+            ])
+
+        # Services section
+        content.extend(['services:', f'  {service_name}:'])
+
+        if is_caddy:
+            content.extend([
+                '    image: caddy:2-alpine',
+                '    container_name: xcancel-caddy'
+            ])
+        else:
+            content.extend([
+                '    image: nginx:1.27-alpine',
+                '    container_name: xcancel-nginx'
+            ])
+
+        content.append('    restart: unless-stopped')
+        content.append('')
+
+        # Networking configuration for service
+        if is_macvlan:
+            # Macvlan - use networks with IP
+            content.extend([
+                '    # Macvlan networking - dedicated IP',
+                '    networks:',
+                '      macvlan_lan:',
+                f'        ipv4_address: {self.config["server_ip"]}',
+                ''
+            ])
+        else:
+            # Bridge - use port forwarding
+            http_port = self.config.get('http_port', '80')
+            https_port = self.config.get('https_port', '443')
+            content.extend([
+                '    # Bridge networking - port forwarding',
+                '    ports:',
+                f'      - "{http_port}:80"',
+                f'      - "{https_port}:443"',
+                f'      - "{https_port}:443/udp"  # HTTP/3 (QUIC)',
+                ''
+            ])
+
+        # Volumes
+        content.extend([
+            '    volumes:',
+            f'      - ./{service_name}/{service_name}.conf:/etc/{service_name}/{service_name}.conf:ro' if service_name == 'nginx' else f'      - ./{service_name}/Caddyfile:/etc/caddy/Caddyfile:ro',
+        ])
+
+        if service_name == 'nginx':
+            content.extend([
+                f'      - ./{service_name}/conf.d:/etc/{service_name}/conf.d:ro',
+                f'      - ./{service_name}/ssl:/etc/{service_name}/ssl:ro',
+                f'      - ./{service_name}/logs:/var/log/{service_name}'
+            ])
+        else:
+            content.extend([
+                f'      - ./{service_name}/ssl:/etc/caddy/ssl:ro',
+                '      - caddy_data:/data',
+                '      - caddy_config:/config'
+            ])
+
+        content.append('')
+
+        # Environment
+        content.extend([
+            '    environment:',
+            '      - TZ=${TZ:-America/New_York}',
+            ''
+        ])
+
+        # Health check
+        content.extend([
+            '    healthcheck:',
+            '      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]',
+            '      interval: 30s',
+            '      timeout: 3s',
+            '      retries: 3',
+            ''
+        ])
+
+        # Optional dnsmasq service
+        if include_dnsmasq:
+            if not is_macvlan:
+                content.extend([
+                    '  # NOTE: dnsmasq requires macvlan networking',
+                    '  # Current config uses bridge mode - dnsmasq will not work',
+                    ''
+                ])
+            else:
+                parts = self.config['server_ip'].rsplit('.', 1)
+                dnsmasq_ip = f"{parts[0]}.{int(parts[1]) + 1}"
+
+                content.extend([
+                    '  dnsmasq:',
+                    '    image: jpillora/dnsmasq:latest',
+                    '    container_name: xcancel-dnsmasq',
+                    '    restart: unless-stopped',
+                    '    networks:',
+                    '      macvlan_lan:',
+                    f'        ipv4_address: {dnsmasq_ip}',
+                    '    volumes:',
+                    '      - ./dnsmasq/dnsmasq.conf:/etc/dnsmasq.conf:ro',
+                    '    environment:',
+                    '      - TZ=${TZ:-America/New_York}',
+                    '    cap_add:',
+                    '      - NET_ADMIN',
+                    ''
+                ])
+
+        # Volumes section for Caddy
+        if is_caddy:
+            content.extend([
+                'volumes:',
+                '  caddy_data:',
+                '  caddy_config:',
+                ''
+            ])
+
+        return compose_file, '\n'.join(content)
+
     def generate_env_file(self):
         """Generate .env file"""
         print_header("Generating Configuration")
@@ -438,6 +606,15 @@ class SetupWizard:
             f.write('\n'.join(content) + '\n')
 
         print_success(f"Created {env_file}")
+
+        # Also generate docker-compose file
+        compose_filename, compose_content = self.generate_docker_compose()
+        compose_file = self.project_dir / compose_filename
+
+        with open(compose_file, 'w') as f:
+            f.write(compose_content)
+
+        print_success(f"Created {compose_file}")
 
         return env_file
 
