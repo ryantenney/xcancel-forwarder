@@ -384,12 +384,35 @@ class SetupWizard:
             self.config['dns'] = 'dnsmasq'
             self.config['dns_instructions'] = 'docs/DNSMASQ_SETUP.md'
             self.config['include_dnsmasq'] = True
+            self.choose_upstream_dns()
         elif 'Router' in choice:
             self.config['dns'] = 'router'
             self.config['dns_instructions'] = 'docs/OTHER_DNS.md'
         else:
             self.config['dns'] = 'manual'
             self.config['dns_instructions'] = 'docs/OTHER_DNS.md#per-device-configuration-without-dns-server'
+
+    def choose_upstream_dns(self):
+        """Ask which upstream DNS provider to use for dnsmasq"""
+        print_info("Choose upstream DNS servers for dnsmasq to use")
+
+        options = [
+            "Cloudflare (1.1.1.1) - Privacy-focused, fast",
+            "Google (8.8.8.8) - Reliable, widely used",
+            "Quad9 (9.9.9.9) - Security-focused, blocks malware",
+            "OpenDNS (208.67.222.222) - Content filtering options"
+        ]
+
+        choice = ask_question("Which upstream DNS provider?", options, default=options[0])
+
+        if 'Cloudflare' in choice:
+            self.config['upstream_dns'] = ['1.1.1.1', '1.0.0.1']
+        elif 'Google' in choice:
+            self.config['upstream_dns'] = ['8.8.8.8', '8.8.4.4']
+        elif 'Quad9' in choice:
+            self.config['upstream_dns'] = ['9.9.9.9', '149.112.112.112']
+        else:  # OpenDNS
+            self.config['upstream_dns'] = ['208.67.222.222', '208.67.220.220']
 
     def generate_docker_compose(self):
         """Generate docker-compose file based on configuration"""
@@ -562,6 +585,7 @@ class SetupWizard:
     def generate_dnsmasq_conf(self):
         """Generate dnsmasq.conf file"""
         server_ip = self.config['server_ip']
+        upstream_dns = self.config.get('upstream_dns', ['1.1.1.1', '1.0.0.1'])
 
         content = [
             "# dnsmasq configuration for X/Twitter → xcancel redirect",
@@ -575,8 +599,12 @@ class SetupWizard:
             "no-hosts",
             "",
             "# Upstream DNS servers",
-            "server=1.1.1.1",
-            "server=1.0.0.1",
+        ]
+
+        for dns in upstream_dns:
+            content.append(f"server={dns}")
+
+        content.extend([
             "",
             "# Cache size",
             "cache-size=1000",
@@ -586,7 +614,7 @@ class SetupWizard:
             f"address=/x.com/{server_ip}",
             f"address=/t.co/{server_ip}",
             ""
-        ]
+        ])
 
         return '\n'.join(content)
 

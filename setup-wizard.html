@@ -531,6 +531,51 @@
 
                 <div class="buttons">
                     <button class="btn-back" onclick="prevStep()">Back</button>
+                    <button class="btn-next" onclick="handleDnsNext()">Next</button>
+                </div>
+            </div>
+
+            <!-- Step 5.5: Upstream DNS (only if dnsmasq selected) -->
+            <div class="step" id="step5_5">
+                <h2>Upstream DNS Provider</h2>
+                <p>Choose which DNS servers dnsmasq should use for non-Twitter queries.</p>
+
+                <div class="option-group">
+                    <div class="option selected" onclick="selectOption('upstreamDns', 'cloudflare', this)">
+                        <input type="radio" name="upstreamDns" value="cloudflare" checked>
+                        <div>
+                            <h3>Cloudflare (1.1.1.1)</h3>
+                            <p class="desc">Privacy-focused, fast, no logging</p>
+                        </div>
+                    </div>
+
+                    <div class="option" onclick="selectOption('upstreamDns', 'google', this)">
+                        <input type="radio" name="upstreamDns" value="google">
+                        <div>
+                            <h3>Google (8.8.8.8)</h3>
+                            <p class="desc">Reliable, widely used, good performance</p>
+                        </div>
+                    </div>
+
+                    <div class="option" onclick="selectOption('upstreamDns', 'quad9', this)">
+                        <input type="radio" name="upstreamDns" value="quad9">
+                        <div>
+                            <h3>Quad9 (9.9.9.9)</h3>
+                            <p class="desc">Security-focused, blocks malware domains</p>
+                        </div>
+                    </div>
+
+                    <div class="option" onclick="selectOption('upstreamDns', 'opendns', this)">
+                        <input type="radio" name="upstreamDns" value="opendns">
+                        <div>
+                            <h3>OpenDNS (208.67.222.222)</h3>
+                            <p class="desc">Content filtering options, parental controls</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="buttons">
+                    <button class="btn-back" onclick="prevStep()">Back</button>
                     <button class="btn-next" onclick="generateConfigs()">Review & Generate</button>
                 </div>
             </div>
@@ -587,12 +632,13 @@
 
     <script>
         let currentStep = 1;
-        const totalSteps = 6;
+        const totalSteps = 7; // Including step 5.5 for upstream DNS
         const config = {
             webServer: 'caddy',
             networking: 'bridge',
             ssl: 'mkcert',
-            dns: 'pihole'
+            dns: 'pihole',
+            upstreamDns: 'cloudflare'
         };
 
         function updateProgress() {
@@ -602,7 +648,8 @@
 
         function showStep(step) {
             document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
-            document.getElementById('step' + step).classList.add('active');
+            const stepId = step === 5.5 ? 'step5_5' : 'step' + step;
+            document.getElementById(stepId).classList.add('active');
             currentStep = step;
             updateProgress();
             window.scrollTo(0, 0);
@@ -616,7 +663,24 @@
 
         function prevStep() {
             if (currentStep > 1) {
-                showStep(currentStep - 1);
+                // Handle step 5.5 going back to step 5
+                if (currentStep === 5.5) {
+                    showStep(5);
+                } else if (currentStep === 6 && config.dns === 'dnsmasq') {
+                    // If on step 6 and dnsmasq was selected, go back to step 5.5
+                    showStep(5.5);
+                } else {
+                    showStep(currentStep - 1);
+                }
+            }
+        }
+
+        function handleDnsNext() {
+            // If dnsmasq is selected, go to upstream DNS step
+            if (config.dns === 'dnsmasq') {
+                showStep(5.5);
+            } else {
+                generateConfigs();
             }
         }
 
@@ -698,6 +762,22 @@
         function generateDnsmasqConf() {
             const serverIp = config.serverIp;
 
+            // Get upstream DNS servers based on selection
+            let upstreamDns;
+            switch (config.upstreamDns) {
+                case 'google':
+                    upstreamDns = ['8.8.8.8', '8.8.4.4'];
+                    break;
+                case 'quad9':
+                    upstreamDns = ['9.9.9.9', '149.112.112.112'];
+                    break;
+                case 'opendns':
+                    upstreamDns = ['208.67.222.222', '208.67.220.220'];
+                    break;
+                default: // cloudflare
+                    upstreamDns = ['1.1.1.1', '1.0.0.1'];
+            }
+
             let content = '# dnsmasq configuration for X/Twitter → xcancel redirect\n';
             content += '# Generated by setup wizard\n\n';
             content += '# Listen on all interfaces\n';
@@ -706,9 +786,10 @@
             content += 'no-resolv\n';
             content += 'no-hosts\n\n';
             content += '# Upstream DNS servers\n';
-            content += 'server=1.1.1.1\n';
-            content += 'server=1.0.0.1\n\n';
-            content += '# Cache size\n';
+            for (const dns of upstreamDns) {
+                content += `server=${dns}\n`;
+            }
+            content += '\n# Cache size\n';
             content += 'cache-size=1000\n\n';
             content += '# DNS overrides - point X/Twitter domains to your proxy server\n';
             content += `address=/twitter.com/${serverIp}\n`;
