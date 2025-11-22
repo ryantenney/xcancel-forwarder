@@ -1556,9 +1556,36 @@ exit /b 1
                 // Convert DER bytes to base64 for storage
                 const caCertDerBase64 = forge.util.encode64(caCertDerBytes);
 
+                // Generate PKCS#12 bundle if CA key is being kept (for Windows import)
+                let caPkcs12Base64 = null;
+                if (keepCAKey) {
+                    try {
+                        // Use the password if provided, otherwise empty password
+                        const p12Password = password || '';
+
+                        // Create PKCS#12 bundle with CA cert + CA key
+                        const p12Asn1 = forge.pkcs12.toPkcs12Asn1(
+                            caKeys.privateKey,
+                            [caCert],
+                            p12Password,
+                            {
+                                algorithm: '3des',  // Standard algorithm for PKCS#12
+                                friendlyName: 'xcancel-forwarder Root CA',
+                                generateLocalKeyId: true
+                            }
+                        );
+                        const p12Der = forge.asn1.toDer(p12Asn1).getBytes();
+                        caPkcs12Base64 = forge.util.encode64(p12Der);
+                    } catch (p12Error) {
+                        console.warn('Failed to generate PKCS#12 bundle:', p12Error);
+                        // Continue without P12 - not critical
+                    }
+                }
+
                 config.generatedCerts = {
                     caCert: caCertPem,
                     caCertDer: caCertDerBase64, // DER format (base64 encoded for storage)
+                    caPkcs12: caPkcs12Base64, // PKCS#12 format (base64 encoded, only if CA key kept)
                     caKey: caKeyPem,
                     caKeyEncrypted: caKeyEncrypted,
                     serverCert: forge.pki.certificateToPem(serverCert),
@@ -2234,6 +2261,13 @@ Without the DNS override, these certificates have no effect. Without the trusted
                         if (config.generatedCerts.caKey) {
                             folder.file('nginx/ssl/ca.key', config.generatedCerts.caKey);
                         }
+
+                        // Add PKCS#12 bundle if available (CA cert + key for Windows import)
+                        if (config.generatedCerts.caPkcs12) {
+                            const p12Binary = forge.util.decode64(config.generatedCerts.caPkcs12);
+                            folder.file('nginx/ssl/ca.p12', p12Binary, {binary: true});
+                            folder.file('nginx/ssl/ca.pfx', p12Binary, {binary: true}); // .pfx is Windows naming convention
+                        }
                         // Add installation instructions
                         const installGuide = `# Installing the CA Certificate
 
@@ -2242,9 +2276,9 @@ The CA certificate must be installed on each device that will access twitter.com
 **Multiple formats provided for compatibility:**
 - \`ca.pem\` - PEM format (standard)
 - \`ca.crt\` - PEM format with .crt extension (common on Linux/macOS)
-- \`ca.cer\` - DER format (Windows-friendly)
+- \`ca.cer\` - DER format (Windows-friendly)${config.generatedCerts.caPkcs12 ? '\n- `ca.p12` / `ca.pfx` - PKCS#12 format with private key (Windows import, password-protected)' : ''}
 
-All three files contain the same CA certificate in different encodings. Use whichever format works best for your platform.
+All certificate files contain the same CA certificate in different encodings. Use whichever format works best for your platform.${config.generatedCerts.caPkcs12 ? '\n\n**Note:** The `.p12`/`.pfx` files include both the certificate AND private key in a single encrypted file. This is especially convenient for Windows users who want to import the CA with one click.' : ''}
 
 ## macOS
 
@@ -2266,7 +2300,21 @@ All three files contain the same CA certificate in different encodings. Use whic
 
 ## Windows
 
-**Recommended: Use \`ca.cer\` (DER format) for best compatibility**
+**Option 1: PKCS#12 Bundle (Easiest - if available)**
+
+If you have \`ca.p12\` or \`ca.pfx\` files:
+
+1. Double-click \`ca.p12\` (or \`ca.pfx\`)
+2. Choose "Current User" and click Next
+3. Click Next (file path is pre-filled)
+4. Enter the password if you set one, or leave blank and click Next
+5. Select "Place all certificates in the following store"
+6. Click "Browse" and select "Trusted Root Certification Authorities"
+7. Click Next and Finish
+
+**Option 2: Certificate Only (Standard)**
+
+If using \`ca.cer\` or \`ca.crt\`:
 
 1. Double-click \`ca.cer\` (or \`ca.crt\`)
 2. Click "Install Certificate"
@@ -2437,11 +2485,18 @@ Without the DNS override, these certificates have no effect. Without the trusted
                         folder.file('caddy/ssl/ca.pem', config.generatedCerts.caCert);  // PEM format
                         folder.file('caddy/ssl/ca.crt', config.generatedCerts.caCert);  // PEM format (.crt extension)
                         // DER format for Windows - decode base64 and add as binary
-                        const caCertDerBinary = forge.util.decode64(config.generatedCerts.caCertDer);
-                        folder.file('caddy/ssl/ca.cer', caCertDerBinary, {binary: true});  // DER format (.cer extension)
+                        const caCertDerBinary2 = forge.util.decode64(config.generatedCerts.caCertDer);
+                        folder.file('caddy/ssl/ca.cer', caCertDerBinary2, {binary: true});  // DER format (.cer extension)
 
                         if (config.generatedCerts.caKey) {
                             folder.file('caddy/ssl/ca.key', config.generatedCerts.caKey);
+                        }
+
+                        // Add PKCS#12 bundle if available (CA cert + key for Windows import)
+                        if (config.generatedCerts.caPkcs12) {
+                            const p12Binary2 = forge.util.decode64(config.generatedCerts.caPkcs12);
+                            folder.file('caddy/ssl/ca.p12', p12Binary2, {binary: true});
+                            folder.file('caddy/ssl/ca.pfx', p12Binary2, {binary: true}); // .pfx is Windows naming convention
                         }
                         // Add installation instructions (same as nginx)
                         const installGuide = `# Installing the CA Certificate
@@ -2451,9 +2506,9 @@ The CA certificate must be installed on each device that will access twitter.com
 **Multiple formats provided for compatibility:**
 - \`ca.pem\` - PEM format (standard)
 - \`ca.crt\` - PEM format with .crt extension (common on Linux/macOS)
-- \`ca.cer\` - DER format (Windows-friendly)
+- \`ca.cer\` - DER format (Windows-friendly)${config.generatedCerts.caPkcs12 ? '\n- `ca.p12` / `ca.pfx` - PKCS#12 format with private key (Windows import, password-protected)' : ''}
 
-All three files contain the same CA certificate in different encodings. Use whichever format works best for your platform.
+All certificate files contain the same CA certificate in different encodings. Use whichever format works best for your platform.${config.generatedCerts.caPkcs12 ? '\n\n**Note:** The `.p12`/`.pfx` files include both the certificate AND private key in a single encrypted file. This is especially convenient for Windows users who want to import the CA with one click.' : ''}
 
 ## macOS
 
@@ -2475,7 +2530,21 @@ All three files contain the same CA certificate in different encodings. Use whic
 
 ## Windows
 
-**Recommended: Use \`ca.cer\` (DER format) for best compatibility**
+**Option 1: PKCS#12 Bundle (Easiest - if available)**
+
+If you have \`ca.p12\` or \`ca.pfx\` files:
+
+1. Double-click \`ca.p12\` (or \`ca.pfx\`)
+2. Choose "Current User" and click Next
+3. Click Next (file path is pre-filled)
+4. Enter the password if you set one, or leave blank and click Next
+5. Select "Place all certificates in the following store"
+6. Click "Browse" and select "Trusted Root Certification Authorities"
+7. Click Next and Finish
+
+**Option 2: Certificate Only (Standard)**
+
+If using \`ca.cer\` or \`ca.crt\`:
 
 1. Double-click \`ca.cer\` (or \`ca.crt\`)
 2. Click "Install Certificate"

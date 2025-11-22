@@ -1119,9 +1119,34 @@ generate_ssl_certificates() {
                 2>/dev/null
             rm -f "$ssl_dir/ca.key.tmp"
             print_success "CA key encrypted and saved"
+
+            # Generate PKCS#12 bundle (CA cert + key) for Windows import
+            print_info "Generating PKCS#12 bundle for Windows..."
+            openssl pkcs12 -export \
+                -in "$ssl_dir/ca.pem" \
+                -inkey "$ssl_dir/ca.key" \
+                -out "$ssl_dir/ca.p12" \
+                -name "xcancel-forwarder Root CA" \
+                -passin pass:"$CA_KEY_PASSWORD" \
+                -passout pass:"$CA_KEY_PASSWORD" \
+                2>/dev/null
+            cp "$ssl_dir/ca.p12" "$ssl_dir/ca.pfx"  # Windows naming convention
+            print_success "Generated PKCS#12 bundle (ca.p12 / ca.pfx)"
         else
             mv "$ssl_dir/ca.key.tmp" "$ssl_dir/ca.key"
             print_warning "CA key saved unencrypted"
+
+            # Generate PKCS#12 bundle without password
+            print_info "Generating PKCS#12 bundle for Windows..."
+            openssl pkcs12 -export \
+                -in "$ssl_dir/ca.pem" \
+                -inkey "$ssl_dir/ca.key" \
+                -out "$ssl_dir/ca.p12" \
+                -name "xcancel-forwarder Root CA" \
+                -passout pass: \
+                2>/dev/null
+            cp "$ssl_dir/ca.p12" "$ssl_dir/ca.pfx"  # Windows naming convention
+            print_success "Generated PKCS#12 bundle (ca.p12 / ca.pfx) - no password"
         fi
     else
         # Keep temporarily for signing
@@ -1238,17 +1263,21 @@ EOF
 generate_install_ca_guide() {
     local ssl_dir="$1"
 
-    cat > "$ssl_dir/INSTALL_CA.md" <<'EOF'
+    # Generate INSTALL_CA.md with conditional PKCS#12 information
+    cat > "$ssl_dir/INSTALL_CA.md" <<EOF
 # Installing the CA Certificate
 
 The CA certificate must be installed on each device that will access twitter.com through this proxy.
 
 **Multiple formats provided for compatibility:**
-- `ca.pem` - PEM format (standard)
-- `ca.crt` - PEM format with .crt extension (common on Linux/macOS)
-- `ca.cer` - DER format (Windows-friendly)
+- \`ca.pem\` - PEM format (standard)
+- \`ca.crt\` - PEM format with .crt extension (common on Linux/macOS)
+- \`ca.cer\` - DER format (Windows-friendly)$([ "$CA_KEY_HANDLING" = "keep" ] && echo "
+- \`ca.p12\` / \`ca.pfx\` - PKCS#12 format with private key (Windows import, password-protected)")
 
-All three files contain the same CA certificate in different encodings. Use whichever format works best for your platform.
+All certificate files contain the same CA certificate in different encodings. Use whichever format works best for your platform.$([ "$CA_KEY_HANDLING" = "keep" ] && echo "
+
+**Note:** The \`.p12\`/\`.pfx\` files include both the certificate AND private key in a single encrypted file. This is especially convenient for Windows users who want to import the CA with one click.")
 
 ## macOS
 
@@ -1270,9 +1299,24 @@ All three files contain the same CA certificate in different encodings. Use whic
 
 ## Windows
 
-**Recommended: Use `ca.cer` (DER format) for best compatibility**
+$([ "$CA_KEY_HANDLING" = "keep" ] && echo "**Option 1: PKCS#12 Bundle (Easiest - if available)**
 
-1. Double-click `ca.cer` (or `ca.crt`)
+If you have \`ca.p12\` or \`ca.pfx\` files:
+
+1. Double-click \`ca.p12\` (or \`ca.pfx\`)
+2. Choose \"Current User\" and click Next
+3. Click Next (file path is pre-filled)
+4. Enter the password if you set one, or leave blank and click Next
+5. Select \"Place all certificates in the following store\"
+6. Click \"Browse\" and select \"Trusted Root Certification Authorities\"
+7. Click Next and Finish
+
+**Option 2: Certificate Only (Standard)**
+
+If using \`ca.cer\` or \`ca.crt\`:
+" || echo "**Recommended: Use \`ca.cer\` (DER format) for best compatibility**
+")
+1. Double-click \`ca.cer\` (or \`ca.crt\`)
 2. Click "Install Certificate"
 3. Choose "Current User"
 4. Select "Place all certificates in the following store"
