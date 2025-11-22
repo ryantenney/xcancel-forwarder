@@ -244,6 +244,7 @@ docker compose pull && docker compose up -d
 
 - **[Quick Start Guide](docs/QUICKSTART.md)** - Detailed manual setup steps
 - **[Decision Guide](docs/DECISION_GUIDE.md)** - Help choosing options
+- **[Examples](docs/EXAMPLES.md)** - Real-world setup walkthroughs
 - **[FAQ](docs/FAQ.md)** - Frequently asked questions
 
 **Configuration:**
@@ -257,10 +258,11 @@ docker compose pull && docker compose up -d
 - **[Other DNS Options](docs/OTHER_DNS.md)** - Router, BIND, hosts file
 - **[Caddy Alternative](docs/CADDY_ALTERNATIVE.md)** - Simpler web server
 
-**Testing:**
+**Testing & Troubleshooting:**
 
 - **[Testing Guide](docs/TESTING.md)** - Essential verification procedures
 - **[Advanced Testing](docs/TESTING_ADVANCED.md)** - Monitoring, performance, automation
+- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Symptom-based problem solving
 
 ## Security Notes
 
