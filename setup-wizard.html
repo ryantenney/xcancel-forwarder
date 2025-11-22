@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>X/Twitter → xcancel Setup Wizard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/node-forge@1.3.1/dist/forge.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -133,6 +134,21 @@
         .option .desc {
             color: #666;
             font-size: 0.95em;
+        }
+
+        .option.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #f5f5f5;
+        }
+
+        .option.disabled:hover {
+            border-color: #e0e0e0;
+            background: #f5f5f5;
+        }
+
+        .option.disabled input[type="radio"] {
+            cursor: not-allowed;
         }
 
         .form-group {
@@ -451,16 +467,16 @@
                 <p>SSL certificates allow HTTPS interception without browser warnings.</p>
 
                 <div class="option-group">
-                    <div class="option" onclick="selectOption('ssl', 'skip', this)">
-                        <input type="radio" name="ssl" value="skip">
+                    <div class="option selected" onclick="selectOption('ssl', 'generate', this)">
+                        <input type="radio" name="ssl" value="generate" checked>
                         <div>
-                            <h3>Skip SSL</h3>
-                            <p class="desc">HTTP-only redirect. Simplest, but HTTPS links will show warnings.</p>
+                            <h3>🔥 Generate in Browser (Easiest)</h3>
+                            <p class="desc">Generate CA and certificates right here. No external tools needed!</p>
                         </div>
                     </div>
 
-                    <div class="option selected" onclick="selectOption('ssl', 'mkcert', this)">
-                        <input type="radio" name="ssl" value="mkcert" checked>
+                    <div class="option" onclick="selectOption('ssl', 'mkcert', this)">
+                        <input type="radio" name="ssl" value="mkcert">
                         <div>
                             <h3>mkcert (Recommended)</h3>
                             <p class="desc">Automatic CA and certificate generation. 3 commands to working HTTPS.</p>
@@ -473,6 +489,124 @@
                             <h3>Manual OpenSSL</h3>
                             <p class="desc">Full control over certificate parameters. Advanced users.</p>
                         </div>
+                    </div>
+
+                    <div class="option" onclick="selectOption('ssl', 'skip', this)">
+                        <input type="radio" name="ssl" value="skip">
+                        <div>
+                            <h3>Skip SSL (Not Recommended)</h3>
+                            <p class="desc">HTTP-only redirect. HTTPS links will show browser warnings.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Manual OpenSSL Configuration (shown when 'manual' is selected) -->
+                <div id="manualOpensslOptions" style="display: none; margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                    <h3>OpenSSL Configuration</h3>
+                    <p style="margin-bottom: 15px;">Customize your CA and certificate parameters:</p>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Country (C):</label>
+                            <input type="text" id="opensslCountry" value="US" maxlength="2"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">State/Province (ST):</label>
+                            <input type="text" id="opensslState" value="Local"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Locality/City (L):</label>
+                            <input type="text" id="opensslLocality" value="Local"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Organization (O):</label>
+                            <input type="text" id="opensslOrg" value="xcancel-forwarder"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Organizational Unit (OU):</label>
+                            <input type="text" id="opensslOU" value="Local Network"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Certificate Validity (days):</label>
+                            <input type="number" id="opensslValidity" value="3650" min="1"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                    </div>
+
+                    <p style="margin-top: 15px; font-size: 0.9em; color: #666;">
+                        These values will be used to generate ca.conf, csr.conf, and cert.conf files included in your download.
+                        You'll use these with OpenSSL commands to create your certificates.
+                    </p>
+                </div>
+
+                <div class="buttons">
+                    <button class="btn-back" onclick="prevStep()">Back</button>
+                    <button class="btn-next" onclick="nextStep()">Next</button>
+                </div>
+            </div>
+
+            <!-- Step 4.5: Generate Certificates (only shown when 'generate' SSL selected) -->
+            <div class="step" id="step4_5">
+                <h2>Generate Certificates</h2>
+                <p>Generate your CA and server certificates right here in your browser!</p>
+
+                <div style="margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                    <h3>Certificate Generation Options</h3>
+                    <p style="margin-bottom: 15px;">Choose how to handle the Certificate Authority (CA) private key:</p>
+
+                    <div class="option-group">
+                        <div class="option selected" onclick="selectOption('caKeyHandling', 'discard', this)">
+                            <input type="radio" name="caKeyHandling" value="discard" checked>
+                            <div>
+                                <h3>🔒 Security-Focused (Recommended)</h3>
+                                <p class="desc">Discard CA private key after signing. More secure, but certificates can't be renewed.</p>
+                            </div>
+                        </div>
+
+                        <div class="option" onclick="selectOption('caKeyHandling', 'keep', this)">
+                            <input type="radio" name="caKeyHandling" value="keep">
+                            <div>
+                                <h3>🔄 Keep CA Key</h3>
+                                <p class="desc">Include CA private key in download. Allows certificate renewal, but you must keep the key secure.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Password protection for CA key (shown when 'keep' is selected) -->
+                    <div id="caKeyPassword" style="display: none; margin-top: 15px; padding: 15px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 5px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 500;">🔐 Password-Protect CA Key (Recommended):</label>
+                        <input type="password" id="caKeyPasswordInput" placeholder="Enter password to encrypt CA key"
+                               style="width: 100%; max-width: 400px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 5px;">
+                        <p style="margin: 5px 0 0 0; font-size: 0.9em; color: #666;">
+                            Leave empty to store unencrypted (not recommended). With a password, the key will be encrypted using AES-256.
+                        </p>
+                    </div>
+
+                    <div style="margin-top: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 500;">Certificate Validity (years):</label>
+                        <input type="number" id="certValidityYears" value="10" min="1" max="30"
+                               style="width: 100px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        <span style="margin-left: 10px; color: #666;">Certificates will be valid for this many years</span>
+                    </div>
+
+                    <button class="btn-primary" onclick="generateCertificates()"
+                            style="margin-top: 15px; padding: 12px 30px; background: #2ecc71; color: white; border: none; border-radius: 6px; font-size: 1em; font-weight: 600; cursor: pointer;">
+                        Generate Certificates
+                    </button>
+
+                    <div id="certGenStatus" style="margin-top: 15px; display: none;">
+                        <div id="certGenProgress" style="margin-bottom: 10px;">
+                            <div style="background: #e0e0e0; height: 20px; border-radius: 10px; overflow: hidden;">
+                                <div id="certGenProgressBar" style="background: #2ecc71; height: 100%; width: 0%; transition: width 0.3s;"></div>
+                            </div>
+                            <p id="certGenProgressText" style="margin-top: 5px; text-align: center;">Initializing...</p>
+                        </div>
+                        <div id="certGenResult" style="padding: 15px; border-radius: 5px; display: none;"></div>
                     </div>
                 </div>
 
@@ -491,8 +625,16 @@
                     <div class="option selected" onclick="selectOption('dns', 'pihole', this)">
                         <input type="radio" name="dns" value="pihole" checked>
                         <div>
-                            <h3>Pi-hole</h3>
+                            <h3>Pi-hole (Recommended)</h3>
                             <p class="desc">Network-wide ad blocking with DNS override capability.</p>
+                        </div>
+                    </div>
+
+                    <div class="option" id="dnsmasqOption" onclick="selectDnsmasqOption(this)">
+                        <input type="radio" name="dns" value="dnsmasq">
+                        <div>
+                            <h3>Included dnsmasq</h3>
+                            <p class="desc">Run a DNS server container (requires macvlan networking).</p>
                         </div>
                     </div>
 
@@ -501,14 +643,6 @@
                         <div>
                             <h3>UniFi/Ubiquiti</h3>
                             <p class="desc">UniFi Dream Machine or USG with custom DNS entries.</p>
-                        </div>
-                    </div>
-
-                    <div class="option" onclick="selectOption('dns', 'dnsmasq', this)">
-                        <input type="radio" name="dns" value="dnsmasq">
-                        <div>
-                            <h3>Included dnsmasq</h3>
-                            <p class="desc">Run a DNS server container (requires macvlan networking).</p>
                         </div>
                     </div>
 
@@ -632,13 +766,14 @@
 
     <script>
         let currentStep = 1;
-        const totalSteps = 7; // Including step 5.5 for upstream DNS
+        const totalSteps = 8; // Including step 4.5 for cert generation and step 5.5 for upstream DNS
         const config = {
             webServer: 'caddy',
             networking: 'bridge',
-            ssl: 'mkcert',
+            ssl: 'generate',
             dns: 'pihole',
-            upstreamDns: 'cloudflare'
+            upstreamDns: 'cloudflare',
+            caKeyHandling: 'discard'
         };
 
         function updateProgress() {
@@ -648,7 +783,14 @@
 
         function showStep(step) {
             document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
-            const stepId = step === 5.5 ? 'step5_5' : 'step' + step;
+            let stepId;
+            if (step === 4.5) {
+                stepId = 'step4_5';
+            } else if (step === 5.5) {
+                stepId = 'step5_5';
+            } else {
+                stepId = 'step' + step;
+            }
             document.getElementById(stepId).classList.add('active');
             currentStep = step;
             updateProgress();
@@ -657,8 +799,18 @@
 
         function nextStep() {
             if (currentStep < totalSteps) {
-                // Handle step 5 going to step 5.5 if dnsmasq selected
-                if (currentStep === 5 && config.dns === 'dnsmasq') {
+                // Handle step 4 going to step 4.5 if 'generate' SSL selected
+                if (currentStep === 4 && config.ssl === 'generate') {
+                    showStep(4.5);
+                } else if (currentStep === 4.5) {
+                    // Validate certificates were generated
+                    if (!config.generatedCerts) {
+                        alert('Please generate certificates before continuing, or go back and choose a different SSL option.');
+                        return;
+                    }
+                    showStep(5);
+                } else if (currentStep === 5 && config.dns === 'dnsmasq') {
+                    // Handle step 5 going to step 5.5 if dnsmasq selected
                     showStep(5.5);
                 } else if (currentStep === 5.5) {
                     // Handle step 5.5 going to step 6
@@ -671,12 +823,22 @@
 
         function prevStep() {
             if (currentStep > 1) {
-                // Handle step 5.5 going back to step 5
-                if (currentStep === 5.5) {
+                // Handle step 4.5 going back to step 4
+                if (currentStep === 4.5) {
+                    showStep(4);
+                } else if (currentStep === 5.5) {
+                    // Handle step 5.5 going back to step 5
                     showStep(5);
+                } else if (currentStep === 5 && config.ssl === 'generate') {
+                    // If on step 5 and generate SSL was selected, go back to step 4.5
+                    showStep(4.5);
                 } else if (currentStep === 6 && config.dns === 'dnsmasq') {
                     // If on step 6 and dnsmasq was selected, go back to step 5.5
                     showStep(5.5);
+                } else if (currentStep === 6 && config.ssl === 'generate') {
+                    // If on step 6 and generate SSL was selected, need to navigate through step 5 → 4.5 → 4
+                    // Actually just go back to step 5, user can navigate from there
+                    showStep(5);
                 } else {
                     showStep(currentStep - 1);
                 }
@@ -702,6 +864,51 @@
 
             // Update radio
             element.querySelector('input[type="radio"]').checked = true;
+
+            // Show/hide manual OpenSSL options (cert generation is now a separate step)
+            if (key === 'ssl') {
+                const manualOpensslOptions = document.getElementById('manualOpensslOptions');
+
+                if (value === 'manual') {
+                    manualOpensslOptions.style.display = 'block';
+                } else {
+                    manualOpensslOptions.style.display = 'none';
+                }
+            }
+
+            // Show/hide CA key password field
+            if (key === 'caKeyHandling') {
+                const caKeyPassword = document.getElementById('caKeyPassword');
+                if (value === 'keep') {
+                    caKeyPassword.style.display = 'block';
+                } else {
+                    caKeyPassword.style.display = 'none';
+                }
+            }
+
+            // Enable/disable dnsmasq option based on networking
+            if (key === 'networking') {
+                const dnsmasqOption = document.getElementById('dnsmasqOption');
+                if (value === 'macvlan') {
+                    dnsmasqOption.classList.remove('disabled');
+                    dnsmasqOption.querySelector('input').disabled = false;
+                } else {
+                    dnsmasqOption.classList.add('disabled');
+                    dnsmasqOption.querySelector('input').disabled = true;
+                    // If dnsmasq is currently selected, switch to pihole
+                    if (config.dns === 'dnsmasq') {
+                        const piholeOption = document.querySelector('.option input[value="pihole"]').parentElement.parentElement;
+                        selectOption('dns', 'pihole', piholeOption);
+                    }
+                }
+            }
+        }
+
+        function selectDnsmasqOption(element) {
+            // Only allow selection if macvlan is enabled
+            if (config.networking === 'macvlan') {
+                selectOption('dns', 'dnsmasq', element);
+            }
         }
 
         function toggleConditional(id, show) {
@@ -732,6 +939,331 @@
             generateNextSteps();
 
             nextStep();
+        }
+
+        // Certificate generation function
+        async function generateCertificates() {
+            const statusDiv = document.getElementById('certGenStatus');
+            const progressDiv = document.getElementById('certGenProgress');
+            const resultDiv = document.getElementById('certGenResult');
+            const progressBar = document.getElementById('certGenProgressBar');
+            const progressText = document.getElementById('certGenProgressText');
+
+            // Show status
+            statusDiv.style.display = 'block';
+            progressDiv.style.display = 'block';
+            resultDiv.style.display = 'none';
+
+            try {
+                const validityYears = parseInt(document.getElementById('certValidityYears').value) || 10;
+                const keepCAKey = config.caKeyHandling === 'keep';
+
+                // Step 1: Generate CA key pair
+                progressBar.style.width = '10%';
+                progressText.textContent = 'Generating CA key pair...';
+                await sleep(100); // Allow UI to update
+
+                const caKeys = forge.pki.rsa.generateKeyPair(2048);
+
+                // Step 2: Create CA certificate
+                progressBar.style.width = '30%';
+                progressText.textContent = 'Creating CA certificate...';
+                await sleep(100);
+
+                const caCert = forge.pki.createCertificate();
+                caCert.publicKey = caKeys.publicKey;
+                caCert.serialNumber = '01';
+                caCert.validity.notBefore = new Date();
+                caCert.validity.notAfter = new Date();
+                caCert.validity.notAfter.setFullYear(caCert.validity.notBefore.getFullYear() + validityYears);
+
+                const caAttrs = [{
+                    name: 'commonName',
+                    value: 'xcancel-forwarder Root CA'
+                }, {
+                    name: 'countryName',
+                    value: 'US'
+                }, {
+                    shortName: 'ST',
+                    value: 'Local'
+                }, {
+                    name: 'localityName',
+                    value: 'Local'
+                }, {
+                    name: 'organizationName',
+                    value: 'xcancel-forwarder'
+                }, {
+                    shortName: 'OU',
+                    value: 'Local Network'
+                }];
+
+                caCert.setSubject(caAttrs);
+                caCert.setIssuer(caAttrs);
+
+                caCert.setExtensions([{
+                    name: 'basicConstraints',
+                    cA: true
+                }, {
+                    name: 'keyUsage',
+                    keyCertSign: true,
+                    digitalSignature: true,
+                    nonRepudiation: true,
+                    keyEncipherment: true,
+                    dataEncipherment: true
+                }, {
+                    name: 'subjectKeyIdentifier'
+                }]);
+
+                // Self-sign CA
+                caCert.sign(caKeys.privateKey, forge.md.sha256.create());
+
+                // Step 3: Generate server key pair
+                progressBar.style.width = '50%';
+                progressText.textContent = 'Generating server key pair...';
+                await sleep(100);
+
+                const serverKeys = forge.pki.rsa.generateKeyPair(2048);
+
+                // Step 4: Create server certificate
+                progressBar.style.width = '70%';
+                progressText.textContent = 'Creating server certificate...';
+                await sleep(100);
+
+                const serverCert = forge.pki.createCertificate();
+                serverCert.publicKey = serverKeys.publicKey;
+                serverCert.serialNumber = '02';
+                serverCert.validity.notBefore = new Date();
+                serverCert.validity.notAfter = new Date();
+                serverCert.validity.notAfter.setFullYear(serverCert.validity.notBefore.getFullYear() + validityYears);
+
+                const serverAttrs = [{
+                    name: 'commonName',
+                    value: 'twitter.com'
+                }, {
+                    name: 'countryName',
+                    value: 'US'
+                }, {
+                    shortName: 'ST',
+                    value: 'Local'
+                }, {
+                    name: 'localityName',
+                    value: 'Local'
+                }, {
+                    name: 'organizationName',
+                    value: 'xcancel-forwarder'
+                }];
+
+                serverCert.setSubject(serverAttrs);
+                serverCert.setIssuer(caAttrs);
+
+                serverCert.setExtensions([{
+                    name: 'basicConstraints',
+                    cA: false
+                }, {
+                    name: 'keyUsage',
+                    digitalSignature: true,
+                    keyEncipherment: true
+                }, {
+                    name: 'extKeyUsage',
+                    serverAuth: true
+                }, {
+                    name: 'subjectAltName',
+                    altNames: [{
+                        type: 2, // DNS
+                        value: 'twitter.com'
+                    }, {
+                        type: 2,
+                        value: '*.twitter.com'
+                    }, {
+                        type: 2,
+                        value: 'x.com'
+                    }, {
+                        type: 2,
+                        value: '*.x.com'
+                    }, {
+                        type: 2,
+                        value: 't.co'
+                    }, {
+                        type: 2,
+                        value: '*.t.co'
+                    }]
+                }, {
+                    name: 'subjectKeyIdentifier'
+                }]);
+
+                // Sign server cert with CA
+                serverCert.sign(caKeys.privateKey, forge.md.sha256.create());
+
+                // Step 5: Convert to PEM format
+                progressBar.style.width = '90%';
+                progressText.textContent = 'Converting to PEM format...';
+                await sleep(100);
+
+                // Store certificates in config
+                let caKeyPem = null;
+                let caKeyEncrypted = false;
+                if (keepCAKey) {
+                    const password = document.getElementById('caKeyPasswordInput').value;
+                    if (password && password.trim() !== '') {
+                        // Encrypt CA key with password using AES-256
+                        caKeyPem = forge.pki.encryptRsaPrivateKey(caKeys.privateKey, password, {
+                            algorithm: 'aes256',
+                            count: 10000, // PBKDF2 iterations
+                            saltSize: 128 / 8
+                        });
+                        caKeyEncrypted = true;
+                    } else {
+                        // Store unencrypted
+                        caKeyPem = forge.pki.privateKeyToPem(caKeys.privateKey);
+                        caKeyEncrypted = false;
+                    }
+                }
+
+                config.generatedCerts = {
+                    caCert: forge.pki.certificateToPem(caCert),
+                    caKey: caKeyPem,
+                    caKeyEncrypted: caKeyEncrypted,
+                    serverCert: forge.pki.certificateToPem(serverCert),
+                    serverKey: forge.pki.privateKeyToPem(serverKeys.privateKey),
+                    // Create bundle (server cert + CA cert for chain)
+                    bundle: forge.pki.certificateToPem(serverCert) + forge.pki.certificateToPem(caCert)
+                };
+
+                // Complete
+                progressBar.style.width = '100%';
+                progressText.textContent = 'Complete!';
+                await sleep(500);
+
+                // Show result
+                progressDiv.style.display = 'none';
+                resultDiv.style.display = 'block';
+                resultDiv.style.background = '#d4edda';
+                resultDiv.style.border = '1px solid #c3e6cb';
+                resultDiv.style.color = '#155724';
+
+                const expiryDate = serverCert.validity.notAfter.toLocaleDateString();
+                let caKeyStatus = '';
+                if (keepCAKey) {
+                    if (config.generatedCerts.caKeyEncrypted) {
+                        caKeyStatus = '<strong>Included and password-protected</strong> with AES-256 encryption';
+                    } else {
+                        caKeyStatus = '<strong>Included but unencrypted</strong> (consider using a password next time)';
+                    }
+                } else {
+                    caKeyStatus = '<strong>Discarded</strong> (certificates cannot be renewed, but more secure)';
+                }
+
+                let resultHTML = `
+                    <h4 style="margin-top: 0;">✓ Certificates Generated Successfully!</h4>
+                    <ul style="margin: 10px 0; padding-left: 20px;">
+                        <li>Root CA certificate created</li>
+                        <li>Server certificate created for twitter.com, x.com, t.co (and wildcards)</li>
+                        <li>Valid until: ${expiryDate}</li>
+                        <li>CA private key: ${caKeyStatus}</li>
+                    </ul>
+                    <p style="margin-top: 10px;"><strong>Next:</strong> The certificates will be included in your download. You'll need to install the CA certificate (ca.crt) on your devices. See INSTALL_CA.md for instructions.</p>
+                `;
+
+                resultDiv.innerHTML = resultHTML;
+
+            } catch (error) {
+                console.error('Certificate generation error:', error);
+                progressDiv.style.display = 'none';
+                resultDiv.style.display = 'block';
+                resultDiv.style.background = '#f8d7da';
+                resultDiv.style.border = '1px solid #f5c6cb';
+                resultDiv.style.color = '#721c24';
+                resultDiv.innerHTML = `
+                    <h4 style="margin-top: 0;">✗ Error Generating Certificates</h4>
+                    <p>${error.message}</p>
+                    <p>Please try again or use mkcert/manual OpenSSL instead.</p>
+                `;
+            }
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function generateOpensslConfigs() {
+            const country = document.getElementById('opensslCountry').value || 'US';
+            const state = document.getElementById('opensslState').value || 'Local';
+            const locality = document.getElementById('opensslLocality').value || 'Local';
+            const org = document.getElementById('opensslOrg').value || 'xcancel-forwarder';
+            const ou = document.getElementById('opensslOU').value || 'Local Network';
+            const validity = document.getElementById('opensslValidity').value || '3650';
+
+            const caConf = `# CA Configuration
+[ req ]
+default_bits = 2048
+prompt = no
+default_md = sha256
+distinguished_name = dn
+x509_extensions = v3_ca
+
+[ dn ]
+C = ${country}
+ST = ${state}
+L = ${locality}
+O = ${org}
+OU = ${ou}
+CN = xcancel-forwarder Root CA
+
+[ v3_ca ]
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer:always
+basicConstraints = critical,CA:TRUE
+keyUsage = critical,digitalSignature,cRLSign,keyCertSign
+`;
+
+            const csrConf = `# CSR Configuration
+[ req ]
+default_bits = 2048
+prompt = no
+default_md = sha256
+distinguished_name = dn
+req_extensions = v3_req
+
+[ dn ]
+C = ${country}
+ST = ${state}
+L = ${locality}
+O = ${org}
+CN = twitter.com
+
+[ v3_req ]
+subjectAltName = @alt_names
+
+[ alt_names ]
+DNS.1 = twitter.com
+DNS.2 = *.twitter.com
+DNS.3 = x.com
+DNS.4 = *.x.com
+DNS.5 = t.co
+DNS.6 = *.t.co
+`;
+
+            const certConf = `# Certificate Signing Configuration
+basicConstraints = CA:FALSE
+keyUsage = digitalSignature,keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[ alt_names ]
+DNS.1 = twitter.com
+DNS.2 = *.twitter.com
+DNS.3 = x.com
+DNS.4 = *.x.com
+DNS.5 = t.co
+DNS.6 = *.t.co
+`;
+
+            return {
+                validity: validity,
+                caConf: caConf,
+                csrConf: csrConf,
+                certConf: certConf
+            };
         }
 
         function generateEnvFile() {
@@ -818,7 +1350,7 @@
             // Header comments
             if (isCaddy) {
                 content += '# Caddy alternative to nginx\n';
-                content += '# Use this file with: docker compose -f docker-compose.caddy.yaml up -d\n\n';
+                content += '# Simpler configuration, automatic HTTP/2 and HTTP/3\n\n';
             }
 
             content += '# Network configuration\n';
@@ -924,7 +1456,7 @@
             }
 
             return {
-                filename: isCaddy ? 'docker-compose.caddy.yaml' : 'docker-compose.yaml',
+                filename: 'docker-compose.yaml',
                 content: content
             };
         }
@@ -981,11 +1513,7 @@
 
             content += `### ${stepNum + 1}. Start the Service\n\n`;
             content += '```bash\n';
-            if (config.webServer === 'nginx') {
-                content += 'docker compose up -d\n';
-            } else {
-                content += 'docker compose -f docker-compose.caddy.yaml up -d\n';
-            }
+            content += 'docker compose up -d\n';
             content += '```\n\n';
 
             content += `### ${stepNum + 2}. Test\n\n`;
@@ -1043,24 +1571,364 @@
                 button.disabled = true;
 
                 const zip = new JSZip();
+                const folder = zip.folder('xcancel-forwarder');
 
-                // Add .env file (named 'env' so it's visible after unzipping)
+                // Add .env file
                 const envContent = generateEnvFile();
-                zip.file('env', envContent);
+                folder.file('.env', envContent);
 
                 // Add docker-compose file
                 const { filename, content } = generateDockerCompose();
-                zip.file(filename, content);
+                folder.file(filename, content);
+
+                // Add web server configuration files
+                if (config.webServer === 'nginx') {
+                    // Add nginx config
+                    const nginxConfig = `# Catches twitter/x hostnames and anything else (default_server) and 301s to xcancel.com
+server {
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    listen 443 ssl;
+    listen 80;
+    http2 on;
+
+    listen 443 quic reuseport;
+
+    server_name twitter.com www.twitter.com x.com www.x.com t.co www.t.co _;
+
+    ssl_certificate     /etc/nginx/ssl/twitter_bundle.pem;  # fullchain
+    ssl_certificate_key /etc/nginx/ssl/twitter_key.pem;
+
+    # quick TLS/session defaults
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    add_header Alt-Svc 'h3=":443"; ma=86400' always;  # advertise HTTP/3
+    add_header X-Protocol $server_protocol always;
+
+    location / {
+        return 301 https://xcancel.com$request_uri;
+    }
+}
+`;
+                    folder.file('nginx/conf.d/xcancel-redirect.conf', nginxConfig);
+
+                    // Add SSL README
+                    const sslReadme = `# SSL Certificates
+
+Place your SSL certificates in this directory:
+
+- \`twitter_bundle.pem\` - Full certificate chain (certificate + CA chain)
+- \`twitter_key.pem\` - Private key
+
+**IMPORTANT**: Never commit actual certificates or private keys to git!
+
+## Required Files
+
+Your nginx configuration expects:
+
+- \`twitter_bundle.pem\` - Certificate + CA chain
+- \`twitter_key.pem\` - Private key
+
+## Setup Instructions
+
+See the setup instructions for complete details on:
+
+1. Creating a self-signed Certificate Authority
+2. Generating certificates for twitter.com/x.com
+3. Installing the CA on your devices
+4. Placing certificates in this directory
+
+## Security Note
+
+The certificates in this directory allow your local nginx server to intercept HTTPS traffic to twitter.com and x.com domains. This only works because you've configured DNS on your network to point these domains to your nginx server, and you've installed your self-signed CA as a trusted root on your devices.
+
+Without the DNS override, these certificates have no effect. Without the trusted CA, browsers will show security warnings.
+`;
+                    folder.file('nginx/ssl/README.md', sslReadme);
+
+                    // Add generated certificates if available
+                    if (config.ssl === 'generate' && config.generatedCerts) {
+                        folder.file('nginx/ssl/twitter_bundle.pem', config.generatedCerts.bundle);
+                        folder.file('nginx/ssl/twitter_key.pem', config.generatedCerts.serverKey);
+                        folder.file('nginx/ssl/ca.crt', config.generatedCerts.caCert);
+                        if (config.generatedCerts.caKey) {
+                            folder.file('nginx/ssl/ca.key', config.generatedCerts.caKey);
+                        }
+                        // Add installation instructions
+                        const installGuide = `# Installing the CA Certificate
+
+The CA certificate (ca.crt) must be installed on each device that will access twitter.com through this proxy.
+
+## macOS
+
+1. Double-click \`ca.crt\`
+2. Keychain Access will open
+3. Find "xcancel-forwarder Root CA" in the list
+4. Double-click it, expand "Trust"
+5. Set "When using this certificate" to "Always Trust"
+6. Close and enter your password
+
+## iOS/iPadOS
+
+1. Email \`ca.crt\` to yourself or use AirDrop
+2. Tap the certificate file
+3. Go to Settings → General → VPN & Device Management
+4. Tap the profile and install it
+5. Go to Settings → General → About → Certificate Trust Settings
+6. Enable the certificate
+
+## Windows
+
+1. Double-click \`ca.crt\`
+2. Click "Install Certificate"
+3. Choose "Current User"
+4. Select "Place all certificates in the following store"
+5. Click "Browse" and select "Trusted Root Certification Authorities"
+6. Click Next and Finish
+
+## Android
+
+1. Copy \`ca.crt\` to your device
+2. Go to Settings → Security → Encryption & credentials
+3. Tap "Install a certificate"
+4. Choose "CA certificate"
+5. Select the \`ca.crt\` file
+
+## Linux
+
+### Debian/Ubuntu
+\`\`\`bash
+sudo cp ca.crt /usr/local/share/ca-certificates/xcancel-ca.crt
+sudo update-ca-certificates
+\`\`\`
+
+### Fedora/RHEL
+\`\`\`bash
+sudo cp ca.crt /etc/pki/ca-trust/source/anchors/xcancel-ca.crt
+sudo update-ca-trust
+\`\`\`
+
+## Firefox
+
+Firefox uses its own certificate store:
+
+1. Open Firefox
+2. Go to Settings → Privacy & Security
+3. Scroll to "Certificates" and click "View Certificates"
+4. Go to "Authorities" tab
+5. Click "Import"
+6. Select \`ca.crt\`
+7. Check "Trust this CA to identify websites"
+8. Click OK
+
+## Verification
+
+After installing, visit https://twitter.com - you should see no certificate warnings.
+${config.generatedCerts.caKeyEncrypted ? `
+## Using the Encrypted CA Key
+
+The CA private key (ca.key) is **password-protected with AES-256 encryption**.
+
+**To use it for certificate renewal:**
+
+\`\`\`bash
+# Decrypt the key (you'll be prompted for the password)
+openssl rsa -in ca.key -out ca_decrypted.key
+
+# Or use it directly with openssl (provide password when prompted)
+openssl req -new -key ca.key -out new_cert.csr
+\`\`\`
+
+**Security note:** Keep this password safe! Without it, you cannot use the CA key to renew certificates. Store the password in a secure location like a password manager.
+` : config.generatedCerts.caKey ? `
+## CA Private Key Included (Unencrypted)
+
+**Warning:** The CA private key (ca.key) is stored **unencrypted**. Anyone with access to this file can create certificates trusted by your devices.
+
+**Security recommendations:**
+- Store ca.key in a secure location with restricted permissions
+- Consider deleting ca.key after distributing ca.crt to all devices if you don't need certificate renewal
+- Use file permissions: \`chmod 600 ca.key\`
+` : ''}
+`;
+                        folder.file('nginx/ssl/INSTALL_CA.md', installGuide);
+                    }
+                } else if (config.webServer === 'caddy') {
+                    // Add Caddyfile
+                    const caddyConfig = `# Caddy configuration for X/Twitter → xcancel redirect
+# Much simpler than nginx!
+
+# Handle all Twitter/X domains
+twitter.com, www.twitter.com, x.com, www.x.com, t.co, www.t.co {
+	# Use custom SSL certificates
+	# Comment out this line to skip HTTPS (HTTP-only redirect)
+	tls /etc/caddy/ssl/twitter_bundle.pem /etc/caddy/ssl/twitter_key.pem
+
+	# Redirect to xcancel, preserving the URI path
+	redir https://xcancel.com{uri} permanent
+}
+
+# That's it! Caddy automatically handles:
+# - HTTP/2 and HTTP/3 (QUIC)
+# - Security headers
+# - Logging
+# - Graceful reloads
+`;
+                    folder.file('caddy/Caddyfile', caddyConfig);
+
+                    // Add SSL README for Caddy
+                    const sslReadme = `# SSL Certificates
+
+Place your SSL certificates in this directory:
+
+- \`twitter_bundle.pem\` - Full certificate chain (certificate + CA chain)
+- \`twitter_key.pem\` - Private key
+
+**IMPORTANT**: Never commit actual certificates or private keys to git!
+
+## Required Files
+
+Your Caddyfile expects:
+
+- \`twitter_bundle.pem\` - Certificate + CA chain
+- \`twitter_key.pem\` - Private key
+
+## Setup Instructions
+
+See the setup instructions for complete details on:
+
+1. Creating a self-signed Certificate Authority
+2. Generating certificates for twitter.com/x.com
+3. Installing the CA on your devices
+4. Placing certificates in this directory
+
+## Security Note
+
+The certificates in this directory allow your Caddy server to intercept HTTPS traffic to twitter.com and x.com domains. This only works because you've configured DNS on your network to point these domains to your Caddy server, and you've installed your self-signed CA as a trusted root on your devices.
+
+Without the DNS override, these certificates have no effect. Without the trusted CA, browsers will show security warnings.
+`;
+                    folder.file('caddy/ssl/README.md', sslReadme);
+
+                    // Add generated certificates if available
+                    if (config.ssl === 'generate' && config.generatedCerts) {
+                        folder.file('caddy/ssl/twitter_bundle.pem', config.generatedCerts.bundle);
+                        folder.file('caddy/ssl/twitter_key.pem', config.generatedCerts.serverKey);
+                        folder.file('caddy/ssl/ca.crt', config.generatedCerts.caCert);
+                        if (config.generatedCerts.caKey) {
+                            folder.file('caddy/ssl/ca.key', config.generatedCerts.caKey);
+                        }
+                        // Add installation instructions (same as nginx)
+                        const installGuide = `# Installing the CA Certificate
+
+The CA certificate (ca.crt) must be installed on each device that will access twitter.com through this proxy.
+
+## macOS
+
+1. Double-click \`ca.crt\`
+2. Keychain Access will open
+3. Find "xcancel-forwarder Root CA" in the list
+4. Double-click it, expand "Trust"
+5. Set "When using this certificate" to "Always Trust"
+6. Close and enter your password
+
+## iOS/iPadOS
+
+1. Email \`ca.crt\` to yourself or use AirDrop
+2. Tap the certificate file
+3. Go to Settings → General → VPN & Device Management
+4. Tap the profile and install it
+5. Go to Settings → General → About → Certificate Trust Settings
+6. Enable the certificate
+
+## Windows
+
+1. Double-click \`ca.crt\`
+2. Click "Install Certificate"
+3. Choose "Current User"
+4. Select "Place all certificates in the following store"
+5. Click "Browse" and select "Trusted Root Certification Authorities"
+6. Click Next and Finish
+
+## Android
+
+1. Copy \`ca.crt\` to your device
+2. Go to Settings → Security → Encryption & credentials
+3. Tap "Install a certificate"
+4. Choose "CA certificate"
+5. Select the \`ca.crt\` file
+
+## Linux
+
+### Debian/Ubuntu
+\`\`\`bash
+sudo cp ca.crt /usr/local/share/ca-certificates/xcancel-ca.crt
+sudo update-ca-certificates
+\`\`\`
+
+### Fedora/RHEL
+\`\`\`bash
+sudo cp ca.crt /etc/pki/ca-trust/source/anchors/xcancel-ca.crt
+sudo update-ca-trust
+\`\`\`
+
+## Firefox
+
+Firefox uses its own certificate store:
+
+1. Open Firefox
+2. Go to Settings → Privacy & Security
+3. Scroll to "Certificates" and click "View Certificates"
+4. Go to "Authorities" tab
+5. Click "Import"
+6. Select \`ca.crt\`
+7. Check "Trust this CA to identify websites"
+8. Click OK
+
+## Verification
+
+After installing, visit https://twitter.com - you should see no certificate warnings.
+${config.generatedCerts.caKeyEncrypted ? `
+## Using the Encrypted CA Key
+
+The CA private key (ca.key) is **password-protected with AES-256 encryption**.
+
+**To use it for certificate renewal:**
+
+\`\`\`bash
+# Decrypt the key (you'll be prompted for the password)
+openssl rsa -in ca.key -out ca_decrypted.key
+
+# Or use it directly with openssl (provide password when prompted)
+openssl req -new -key ca.key -out new_cert.csr
+\`\`\`
+
+**Security note:** Keep this password safe! Without it, you cannot use the CA key to renew certificates. Store the password in a secure location like a password manager.
+` : config.generatedCerts.caKey ? `
+## CA Private Key Included (Unencrypted)
+
+**Warning:** The CA private key (ca.key) is stored **unencrypted**. Anyone with access to this file can create certificates trusted by your devices.
+
+**Security recommendations:**
+- Store ca.key in a secure location with restricted permissions
+- Consider deleting ca.key after distributing ca.crt to all devices if you don't need certificate renewal
+- Use file permissions: \`chmod 600 ca.key\`
+` : ''}
+`;
+                        folder.file('caddy/ssl/INSTALL_CA.md', installGuide);
+                    }
+                }
 
                 // Add dnsmasq.conf if dnsmasq is selected
                 if (config.dns === 'dnsmasq' && config.networking === 'macvlan') {
                     const dnsmasqContent = generateDnsmasqConf();
-                    zip.file('dnsmasq/dnsmasq.conf', dnsmasqContent);
+                    folder.file('dnsmasq/dnsmasq.conf', dnsmasqContent);
                 }
 
                 // Add instructions
                 const instructions = generateInstructions();
-                zip.file('SETUP_INSTRUCTIONS.md', instructions);
+                folder.file('SETUP_INSTRUCTIONS.md', instructions);
 
                 // Generate ZIP file
                 const blob = await zip.generateAsync({ type: 'blob' });
@@ -1114,12 +1982,7 @@
             const button = event.target;
             const originalText = button.innerHTML;
 
-            let cmd;
-            if (config.webServer === 'nginx') {
-                cmd = 'docker compose up -d';
-            } else {
-                cmd = 'docker compose -f docker-compose.caddy.yaml up -d';
-            }
+            const cmd = 'docker compose up -d';
 
             navigator.clipboard.writeText(cmd).then(() => {
                 button.innerHTML = '✓ Copied!';
@@ -1142,6 +2005,13 @@
 
         // Initialize
         updateProgress();
+
+        // Set initial dnsmasq disabled state (disabled for bridge mode)
+        if (config.networking !== 'macvlan') {
+            const dnsmasqOption = document.getElementById('dnsmasqOption');
+            dnsmasqOption.classList.add('disabled');
+            dnsmasqOption.querySelector('input').disabled = true;
+        }
     </script>
 </body>
 </html>

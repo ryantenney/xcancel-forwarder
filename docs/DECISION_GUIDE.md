@@ -9,11 +9,11 @@ This guide helps you navigate the various options for setting up xcancel-forward
 ```
 START HERE
     │
-    ├─ Do you want the fastest, easiest setup?
-    │  └─ YES → Use Web Wizard (15 min) → DONE
+    ├─ Do you want the easiest setup?
+    │  └─ YES → Use Web Wizard (10-15 min) → DONE
     │
     ├─ Are you setting up on a headless server via SSH?
-    │  └─ YES → Use CLI Wizard (10 min) → DONE
+    │  └─ YES → Use CLI Wizard (5-10 min) → DONE
     │
     └─ Do you want to understand how everything works?
        └─ YES → Continue reading this guide
