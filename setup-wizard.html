@@ -384,19 +384,19 @@
                 <p>Both options work perfectly - the difference is configuration complexity.</p>
 
                 <div class="option-group">
-                    <div class="option" onclick="selectOption('webServer', 'nginx', this)">
-                        <input type="radio" name="webServer" value="nginx">
-                        <div>
-                            <h3>nginx</h3>
-                            <p class="desc">Battle-tested, widely used, industry standard</p>
-                        </div>
-                    </div>
-
                     <div class="option selected" onclick="selectOption('webServer', 'caddy', this)">
                         <input type="radio" name="webServer" value="caddy" checked>
                         <div>
                             <h3>Caddy (Recommended)</h3>
                             <p class="desc">Modern, automatic HTTPS, 4-line config vs 27 lines</p>
+                        </div>
+                    </div>
+
+                    <div class="option" onclick="selectOption('webServer', 'nginx', this)">
+                        <input type="radio" name="webServer" value="nginx">
+                        <div>
+                            <h3>nginx</h3>
+                            <p class="desc">Battle-tested, widely used, industry standard</p>
                         </div>
                     </div>
                 </div>
@@ -425,7 +425,7 @@
                         <input type="radio" name="networking" value="macvlan">
                         <div>
                             <h3>Macvlan (Dedicated IP)</h3>
-                            <p class="desc">Container gets its own IP on your LAN. Better for Pi-hole/dnsmasq.</p>
+                            <p class="desc">Container gets its own IP on your LAN. Required for dnsmasq.</p>
                         </div>
                     </div>
                 </div>
@@ -500,50 +500,6 @@
                     </div>
                 </div>
 
-                <!-- Manual OpenSSL Configuration (shown when 'manual' is selected) -->
-                <div id="manualOpensslOptions" style="display: none; margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
-                    <h3>OpenSSL Configuration</h3>
-                    <p style="margin-bottom: 15px;">Customize your CA and certificate parameters:</p>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                        <div>
-                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Country (C):</label>
-                            <input type="text" id="opensslCountry" value="US" maxlength="2"
-                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">State/Province (ST):</label>
-                            <input type="text" id="opensslState" value="Local"
-                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Locality/City (L):</label>
-                            <input type="text" id="opensslLocality" value="Local"
-                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Organization (O):</label>
-                            <input type="text" id="opensslOrg" value="xcancel-forwarder"
-                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Organizational Unit (OU):</label>
-                            <input type="text" id="opensslOU" value="Local Network"
-                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Certificate Validity (days):</label>
-                            <input type="number" id="opensslValidity" value="3650" min="1"
-                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-                        </div>
-                    </div>
-
-                    <p style="margin-top: 15px; font-size: 0.9em; color: #666;">
-                        These values will be used to generate ca.conf, csr.conf, and cert.conf files included in your download.
-                        You'll use these with OpenSSL commands to create your certificates.
-                    </p>
-                </div>
-
                 <div class="buttons">
                     <button class="btn-back" onclick="prevStep()">Back</button>
                     <button class="btn-next" onclick="nextStep()">Next</button>
@@ -552,18 +508,19 @@
 
             <!-- Step 4.5: Generate Certificates (only shown when 'generate' SSL selected) -->
             <div class="step" id="step4_5">
-                <h2>Generate Certificates</h2>
-                <p>Generate your CA and server certificates right here in your browser!</p>
+                <h2>Generating Your Certificates</h2>
+                <p>Configure how your certificates will be generated. Certificates will be created automatically using your unique values.</p>
 
-                <div style="margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
-                    <h3>Certificate Generation Options</h3>
-                    <p style="margin-bottom: 15px;">Choose how to handle the Certificate Authority (CA) private key:</p>
+                <!-- CA Private Key Handling (prominent, before parameters) -->
+                <div style="margin-top: 20px; padding: 20px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 8px;">
+                    <h3 style="margin-top: 0;">🔑 CA Private Key Handling</h3>
+                    <p style="margin-bottom: 15px; color: #666;">Choose what happens to the CA private key after certificate generation:</p>
 
                     <div class="option-group">
-                        <div class="option selected" onclick="selectOption('caKeyHandling', 'discard', this)">
+                        <div class="option selected" onclick="selectOption('caKeyHandling', 'discard', this)" style="margin-bottom: 10px;">
                             <input type="radio" name="caKeyHandling" value="discard" checked>
                             <div>
-                                <h3>🔒 Security-Focused (Recommended)</h3>
+                                <h3>🔒 Discard CA Key (Recommended)</h3>
                                 <p class="desc">Discard CA private key after signing. More secure, but certificates can't be renewed.</p>
                             </div>
                         </div>
@@ -578,7 +535,7 @@
                     </div>
 
                     <!-- Password protection for CA key (shown when 'keep' is selected) -->
-                    <div id="caKeyPassword" style="display: none; margin-top: 15px; padding: 15px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 5px;">
+                    <div id="caKeyPassword" style="display: none; margin-top: 15px; padding: 15px; background: #fff; border: 1px solid #ffc107; border-radius: 5px;">
                         <label style="display: block; margin-bottom: 5px; font-weight: 500;">🔐 Password-Protect CA Key (Recommended):</label>
                         <input type="password" id="caKeyPasswordInput" placeholder="Enter password to encrypt CA key"
                                style="width: 100%; max-width: 400px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 5px;">
@@ -586,20 +543,47 @@
                             Leave empty to store unencrypted (not recommended). With a password, the key will be encrypted using AES-256.
                         </p>
                     </div>
+                </div>
 
-                    <div style="margin-top: 15px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: 500;">Certificate Validity (years):</label>
-                        <input type="number" id="certValidityYears" value="10" min="1" max="30"
-                               style="width: 100px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-                        <span style="margin-left: 10px; color: #666;">Certificates will be valid for this many years</span>
+                <!-- Certificate Parameters -->
+                <div style="margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                    <h3>Certificate Parameters</h3>
+                    <p style="margin-bottom: 15px; color: #666;">These values make your certificates uniquely yours:</p>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Country (C):</label>
+                            <input type="text" id="genCertCountry" value="US" maxlength="2"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">State/Province (ST):</label>
+                            <input type="text" id="genCertState" value="Local"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Locality/City (L):</label>
+                            <input type="text" id="genCertLocality" value="Local"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Organization (O):</label>
+                            <input type="text" id="genCertOrg" value="xcancel-forwarder"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Organizational Unit (OU):</label>
+                            <input type="text" id="genCertOU" value="Local Network"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Certificate Validity (years):</label>
+                            <input type="number" id="genCertValidityYears" value="10" min="1" max="30"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
                     </div>
 
-                    <button class="btn-primary" onclick="generateCertificates()"
-                            style="margin-top: 15px; padding: 12px 30px; background: #2ecc71; color: white; border: none; border-radius: 6px; font-size: 1em; font-weight: 600; cursor: pointer;">
-                        Generate Certificates
-                    </button>
-
-                    <div id="certGenStatus" style="margin-top: 15px; display: none;">
+                    <div id="certGenStatus" style="margin-top: 20px; display: none;">
                         <div id="certGenProgress" style="margin-bottom: 10px;">
                             <div style="background: #e0e0e0; height: 20px; border-radius: 10px; overflow: hidden;">
                                 <div id="certGenProgressBar" style="background: #2ecc71; height: 100%; width: 0%; transition: width 0.3s;"></div>
@@ -612,7 +596,76 @@
 
                 <div class="buttons">
                     <button class="btn-back" onclick="prevStep()">Back</button>
-                    <button class="btn-next" onclick="nextStep()">Next</button>
+                    <button id="generateCertsNext" onclick="handleGenerateCertsNext()" style="background: #52c41a; color: white; padding: 12px 24px; border: none; border-radius: 8px; font-size: 1em; cursor: pointer; font-weight: 500;">Generate Certificates</button>
+                </div>
+            </div>
+
+            <!-- Step 4.6: Manual OpenSSL Certificate Parameters -->
+            <div class="step" id="step4_6">
+                <h2>Manual OpenSSL Configuration</h2>
+                <p>Customize your certificate parameters. We'll generate the OpenSSL commands for you to run.</p>
+
+                <!-- Certificate Parameters -->
+                <div style="margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                    <h3>Certificate Parameters</h3>
+                    <p style="margin-bottom: 15px; color: #666;">These values will be used in your OpenSSL certificates:</p>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Country (C):</label>
+                            <input type="text" id="manualCertCountry" value="US" maxlength="2"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">State/Province (ST):</label>
+                            <input type="text" id="manualCertState" value="Local"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Locality/City (L):</label>
+                            <input type="text" id="manualCertLocality" value="Local"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Organization (O):</label>
+                            <input type="text" id="manualCertOrg" value="xcancel-forwarder"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Organizational Unit (OU):</label>
+                            <input type="text" id="manualCertOU" value="Local Network"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Certificate Validity (days):</label>
+                            <input type="number" id="manualCertValidityDays" value="3650" min="365"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Key Size (bits):</label>
+                            <select id="manualCertKeySize" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                                <option value="2048" selected>2048 (Standard)</option>
+                                <option value="3072">3072 (High Security)</option>
+                                <option value="4096">4096 (Maximum Security)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Email Address (optional):</label>
+                            <input type="email" id="manualCertEmail" placeholder="admin@example.com"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                    </div>
+
+                    <div id="opensslCommands" style="margin-top: 20px; padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 4px; display: none;">
+                        <h4 style="margin-top: 0;">OpenSSL Commands</h4>
+                        <p style="color: #666; font-size: 0.9em;">Run these commands in your terminal to generate certificates with your custom parameters:</p>
+                        <pre id="opensslCommandsContent" style="background: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto; font-size: 0.85em;"></pre>
+                    </div>
+                </div>
+
+                <div class="buttons">
+                    <button class="btn-back" onclick="prevStep()">Back</button>
+                    <button class="btn-next" onclick="showOpenSSLCommands(); nextStep();">Next</button>
                 </div>
             </div>
 
@@ -714,6 +767,43 @@
                 </div>
             </div>
 
+            <!-- Step 5.6: IP Address Input (optional - only if not dnsmasq and not macvlan) -->
+            <div class="step" id="step5_6">
+                <h2>Docker Host IP Address</h2>
+                <p>Enter the IP address of your Docker host machine for the hosts file configuration.</p>
+
+                <div style="margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                    <p style="margin-bottom: 15px; color: #666;">
+                        This IP will be used in the generated hosts file to redirect Twitter/X traffic to your xcancel proxy.
+                    </p>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 500;">Docker Host IP Address:</label>
+                        <input type="text" id="dockerHostIp" placeholder="192.168.1.100"
+                               pattern="^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$"
+                               style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em;">
+                        <p style="margin-top: 5px; color: #666; font-size: 0.9em;">
+                            Enter the local network IP address where Docker is running (e.g., 192.168.1.100)
+                        </p>
+                    </div>
+
+                    <div style="background: #e6f7ff; border-left: 4px solid #1890ff; padding: 15px; border-radius: 4px;">
+                        <h4 style="margin-top: 0;">💡 How to find your Docker host IP:</h4>
+                        <ul style="margin-top: 10px; margin-bottom: 0; color: #666;">
+                            <li><strong>Linux/Mac:</strong> Run <code>hostname -I | awk '{print $1}'</code> or <code>ip addr</code></li>
+                            <li><strong>Windows:</strong> Run <code>ipconfig</code> and look for "IPv4 Address"</li>
+                            <li><strong>Any OS:</strong> Check your router's DHCP client list</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="buttons">
+                    <button class="btn-back" onclick="prevStep()">Back</button>
+                    <button class="btn-next" onclick="handleIpAddressSkip()" style="background: #666; margin-right: 10px;">Skip</button>
+                    <button class="btn-next" onclick="handleIpAddressNext()">Next</button>
+                </div>
+            </div>
+
             <!-- Step 6: Review & Download -->
             <div class="step" id="step6">
                 <h2>Review Configuration</h2>
@@ -744,14 +834,7 @@
                     <h2>Configuration Generated!</h2>
                     <p>Download your customized configuration files below.</p>
 
-                    <button class="download-btn" onclick="downloadAllAsZip()" style="background: #52c41a; font-size: 1.2em;">📦 Download All as ZIP</button>
-                    <br><br>
-                    <div style="opacity: 0.7;">
-                        <small>Or download individually:</small><br>
-                        <button class="download-btn" onclick="downloadEnvFile()">📄 .env</button>
-                        <button class="download-btn" onclick="downloadDockerCompose()">🐳 docker-compose</button>
-                        <button class="download-btn" onclick="downloadInstructions()">📋 Instructions</button>
-                    </div>
+                    <button class="download-btn" onclick="downloadAllAsZip()" style="background: #52c41a; font-size: 1.2em;">📦 Download Configuration ZIP</button>
                 </div>
 
                 <div id="nextStepsSection"></div>
@@ -765,8 +848,96 @@
     </div>
 
     <script>
-        let currentStep = 1;
-        const totalSteps = 8; // Including step 4.5 for cert generation and step 5.5 for upstream DNS
+        // Step graph defining the flow
+        const stepGraph = {
+            welcome: {
+                id: 'step1',
+                next: () => 'webServer',
+                prev: () => null
+            },
+            webServer: {
+                id: 'step2',
+                next: () => 'networking',
+                prev: () => 'welcome'
+            },
+            networking: {
+                id: 'step3',
+                next: () => 'ssl',
+                prev: () => 'webServer'
+            },
+            ssl: {
+                id: 'step4',
+                next: () => {
+                    if (config.ssl === 'generate') return 'generateCerts';
+                    if (config.ssl === 'manual') return 'manualCerts';
+                    return 'dns';
+                },
+                prev: () => 'networking'
+            },
+            generateCerts: {
+                id: 'step4_5',
+                next: () => 'dns',
+                prev: () => 'ssl',
+                validate: () => {
+                    if (!config.generatedCerts) {
+                        alert('Please generate certificates before continuing, or go back and choose a different SSL option.');
+                        return false;
+                    }
+                    return true;
+                }
+            },
+            manualCerts: {
+                id: 'step4_6',
+                next: () => 'dns',
+                prev: () => 'ssl'
+            },
+            dns: {
+                id: 'step5',
+                next: () => {
+                    if (config.dns === 'dnsmasq') return 'upstreamDns';
+                    // Pi-hole uses dynamic hosts file, no IP needed
+                    if (config.dns === 'pihole') return 'review';
+                    // For other DNS methods (unifi/router/manual), need IP if not macvlan
+                    if (config.networking !== 'macvlan') return 'ipAddress';
+                    return 'review';
+                },
+                prev: () => {
+                    if (config.ssl === 'generate') return 'generateCerts';
+                    if (config.ssl === 'manual') return 'manualCerts';
+                    return 'ssl';
+                }
+            },
+            upstreamDns: {
+                id: 'step5_5',
+                next: () => {
+                    // After upstream DNS, check if we need IP address
+                    if (config.networking !== 'macvlan') return 'ipAddress';
+                    return 'review';
+                },
+                prev: () => 'dns'
+            },
+            ipAddress: {
+                id: 'step5_6',
+                next: () => 'review',
+                prev: () => config.dns === 'dnsmasq' ? 'upstreamDns' : 'dns'
+            },
+            review: {
+                id: 'step6',
+                next: () => null,
+                prev: () => {
+                    // Navigate back based on what was shown
+                    if (config.networking !== 'macvlan' && config.dns !== 'dnsmasq') return 'ipAddress';
+                    if (config.dns === 'dnsmasq') return 'upstreamDns';
+                    return 'dns';
+                }
+            }
+        };
+
+        // Ordered list of all steps for progress calculation
+        const allSteps = ['welcome', 'webServer', 'networking', 'ssl', 'generateCerts', 'dns', 'upstreamDns', 'review'];
+
+        let currentStep = 'welcome';
+        let navigationHistory = []; // Breadcrumbs stack for back navigation
         const config = {
             webServer: 'caddy',
             networking: 'bridge',
@@ -777,81 +948,95 @@
         };
 
         function updateProgress() {
-            const progress = ((currentStep - 1) / (totalSteps - 1)) * 100;
+            // Calculate progress based on position in flow
+            const currentIndex = allSteps.indexOf(currentStep);
+            const progress = (currentIndex / (allSteps.length - 1)) * 100;
             document.getElementById('progressBar').style.width = progress + '%';
         }
 
-        function showStep(step) {
-            document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
-            let stepId;
-            if (step === 4.5) {
-                stepId = 'step4_5';
-            } else if (step === 5.5) {
-                stepId = 'step5_5';
-            } else {
-                stepId = 'step' + step;
+        function showStep(stepName) {
+            if (!stepGraph[stepName]) {
+                console.error('Invalid step:', stepName);
+                return;
             }
-            document.getElementById(stepId).classList.add('active');
-            currentStep = step;
-            updateProgress();
-            window.scrollTo(0, 0);
+
+            document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+            const stepElement = document.getElementById(stepGraph[stepName].id);
+            if (stepElement) {
+                stepElement.classList.add('active');
+                currentStep = stepName;
+                updateProgress();
+                window.scrollTo(0, 0);
+            } else {
+                console.error('Step element not found:', stepGraph[stepName].id);
+            }
         }
 
         function nextStep() {
-            if (currentStep < totalSteps) {
-                // Handle step 4 going to step 4.5 if 'generate' SSL selected
-                if (currentStep === 4 && config.ssl === 'generate') {
-                    showStep(4.5);
-                } else if (currentStep === 4.5) {
-                    // Validate certificates were generated
-                    if (!config.generatedCerts) {
-                        alert('Please generate certificates before continuing, or go back and choose a different SSL option.');
-                        return;
-                    }
-                    showStep(5);
-                } else if (currentStep === 5 && config.dns === 'dnsmasq') {
-                    // Handle step 5 going to step 5.5 if dnsmasq selected
-                    showStep(5.5);
-                } else if (currentStep === 5.5) {
-                    // Handle step 5.5 going to step 6
-                    showStep(6);
-                } else {
-                    showStep(currentStep + 1);
-                }
+            const stepConfig = stepGraph[currentStep];
+
+            // Run validation if present
+            if (stepConfig.validate && !stepConfig.validate()) {
+                return;
+            }
+
+            const nextStepName = stepConfig.next();
+            if (nextStepName) {
+                // Push current step to history before navigating
+                navigationHistory.push(currentStep);
+                showStep(nextStepName);
             }
         }
 
         function prevStep() {
-            if (currentStep > 1) {
-                // Handle step 4.5 going back to step 4
-                if (currentStep === 4.5) {
-                    showStep(4);
-                } else if (currentStep === 5.5) {
-                    // Handle step 5.5 going back to step 5
-                    showStep(5);
-                } else if (currentStep === 5 && config.ssl === 'generate') {
-                    // If on step 5 and generate SSL was selected, go back to step 4.5
-                    showStep(4.5);
-                } else if (currentStep === 6 && config.dns === 'dnsmasq') {
-                    // If on step 6 and dnsmasq was selected, go back to step 5.5
-                    showStep(5.5);
-                } else if (currentStep === 6 && config.ssl === 'generate') {
-                    // If on step 6 and generate SSL was selected, need to navigate through step 5 → 4.5 → 4
-                    // Actually just go back to step 5, user can navigate from there
-                    showStep(5);
-                } else {
-                    showStep(currentStep - 1);
-                }
+            // Pop from navigation history
+            if (navigationHistory.length > 0) {
+                const prevStepName = navigationHistory.pop();
+                showStep(prevStepName);
             }
         }
 
         function handleDnsNext() {
-            // If dnsmasq is selected, go to upstream DNS step
-            if (config.dns === 'dnsmasq') {
-                showStep(5.5);
-            } else {
+            // Use the step graph navigation
+            const nextStepName = stepGraph.dns.next();
+            if (nextStepName === 'review') {
+                navigationHistory.push(currentStep);
                 generateConfigs();
+            } else {
+                navigationHistory.push(currentStep);
+                showStep(nextStepName);
             }
+        }
+
+        function handleIpAddressNext() {
+            const ipInput = document.getElementById('dockerHostIp');
+            const ip = ipInput.value.trim();
+
+            // Validate IP address format
+            const ipPattern = /^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$/;
+            if (!ip || !ipPattern.test(ip)) {
+                alert('Please enter a valid IP address (e.g., 192.168.1.100)');
+                ipInput.focus();
+                return;
+            }
+
+            // Store the IP in config
+            config.dockerHostIp = ip;
+            config.skipHostsFile = false;
+
+            // Navigate to review
+            navigationHistory.push(currentStep);
+            generateConfigs();
+        }
+
+        function handleIpAddressSkip() {
+            // Mark that hosts file should be skipped
+            config.skipHostsFile = true;
+            config.dockerHostIp = null;
+
+            // Navigate to review
+            navigationHistory.push(currentStep);
+            generateConfigs();
         }
 
         function selectOption(key, value, element) {
@@ -929,16 +1114,246 @@
                 config.serverIp = document.getElementById('serverIp').value;
             }
 
-            // Update review
-            document.getElementById('reviewWebServer').textContent = config.webServer;
-            document.getElementById('reviewNetworking').textContent = config.networking;
-            document.getElementById('reviewSsl').textContent = config.ssl;
-            document.getElementById('reviewDns').textContent = config.dns;
+            // Update review with friendly names
+            const friendlyNames = {
+                webServer: {
+                    'caddy': 'Caddy',
+                    'nginx': 'nginx'
+                },
+                networking: {
+                    'bridge': 'Bridge - Simple port forwarding',
+                    'macvlan': 'Macvlan - Dedicated IP on LAN'
+                },
+                ssl: {
+                    'generate': 'Generate in Browser',
+                    'mkcert': 'mkcert',
+                    'manual': 'Manual OpenSSL',
+                    'skip': 'Skip SSL (HTTP only)'
+                },
+                dns: {
+                    'pihole': 'Pi-hole',
+                    'dnsmasq': 'Included dnsmasq',
+                    'unifi': 'UniFi/Ubiquiti',
+                    'router': 'Router Built-in DNS',
+                    'manual': 'Manual (Hosts File)'
+                }
+            };
+
+            document.getElementById('reviewWebServer').textContent = friendlyNames.webServer[config.webServer] || config.webServer;
+            document.getElementById('reviewNetworking').textContent = friendlyNames.networking[config.networking] || config.networking;
+            document.getElementById('reviewSsl').textContent = friendlyNames.ssl[config.ssl] || config.ssl;
+            document.getElementById('reviewDns').textContent = friendlyNames.dns[config.dns] || config.dns;
 
             // Generate next steps
             generateNextSteps();
 
-            nextStep();
+            // Navigate to review step
+            showStep('review');
+        }
+
+        // Handle Generate & Continue button
+        async function handleGenerateCertsNext() {
+            // Disable the button during generation
+            const nextBtn = document.getElementById('generateCertsNext');
+            const originalText = nextBtn.innerHTML;
+            nextBtn.disabled = true;
+            nextBtn.innerHTML = 'Generating...';
+
+            try {
+                await generateCertificates();
+                // If successful, change button to "Next" and update styling
+                nextBtn.disabled = false;
+                nextBtn.innerHTML = 'Next';
+                nextBtn.style.background = '#1677ff'; // Blue
+                nextBtn.onclick = nextStep;
+            } catch (error) {
+                // Re-enable button on error
+                nextBtn.disabled = false;
+                nextBtn.innerHTML = originalText;
+            }
+        }
+
+        // Show OpenSSL commands with custom parameters
+        function showOpenSSLCommands() {
+            // Read custom parameters from form
+            const country = document.getElementById('manualCertCountry').value || 'US';
+            const state = document.getElementById('manualCertState').value || 'Local';
+            const locality = document.getElementById('manualCertLocality').value || 'Local';
+            const org = document.getElementById('manualCertOrg').value || 'xcancel-forwarder';
+            const ou = document.getElementById('manualCertOU').value || 'Local Network';
+            const validityDays = document.getElementById('manualCertValidityDays').value || '3650';
+            const keySize = document.getElementById('manualCertKeySize').value || '2048';
+            const email = document.getElementById('manualCertEmail').value || '';
+
+            // Build subject strings
+            const emailPart = email ? `/emailAddress=${email}` : '';
+            const caSubject = `/C=${country}/ST=${state}/L=${locality}/O=${org}/OU=${ou}${emailPart}/CN=${org} Root CA`;
+            const serverSubject = `/C=${country}/ST=${state}/L=${locality}/O=${org}${emailPart}/CN=twitter.com`;
+
+            // Generate bash script
+            const bashScript = `#!/bin/bash
+# OpenSSL Certificate Generation Script
+# Generated by xcancel-forwarder setup wizard
+
+set -e  # Exit on error
+
+echo "Generating certificates with custom parameters..."
+
+# 1. Generate CA private key
+echo "Step 1/8: Generating CA private key..."
+openssl genrsa -out ca.key ${keySize}
+
+# 2. Generate CA certificate
+echo "Step 2/8: Generating CA certificate..."
+openssl req -new -x509 -days ${validityDays} -key ca.key -out ca.crt \\
+  -subj "${caSubject}"
+
+# 3. Generate server private key
+echo "Step 3/8: Generating server private key..."
+openssl genrsa -out server.key ${keySize}
+
+# 4. Create server certificate signing request (CSR)
+echo "Step 4/8: Creating server CSR..."
+openssl req -new -key server.key -out server.csr \\
+  -subj "${serverSubject}"
+
+# 5. Create SAN configuration file
+echo "Step 5/8: Creating SAN configuration..."
+cat > san.cnf << 'EOF'
+[req]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+
+[req_distinguished_name]
+
+[v3_req]
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = twitter.com
+DNS.2 = *.twitter.com
+DNS.3 = x.com
+DNS.4 = *.x.com
+DNS.5 = t.co
+DNS.6 = *.t.co
+EOF
+
+# 6. Sign server certificate with CA
+echo "Step 6/8: Signing server certificate..."
+openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key \\
+  -CAcreateserial -out server.crt -days ${validityDays} \\
+  -extensions v3_req -extfile san.cnf
+
+# 7. Create certificate bundle
+echo "Step 7/8: Creating certificate bundle..."
+cat server.crt ca.crt > bundle.crt
+
+# 8. Clean up
+echo "Step 8/8: Cleaning up temporary files..."
+rm server.csr san.cnf ca.srl
+
+echo ""
+echo "✓ Certificate generation complete!"
+echo ""
+echo "Generated files:"
+echo "  - ca.key: CA private key (keep secure!)"
+echo "  - ca.crt: CA certificate (install on devices)"
+echo "  - server.key: Server private key"
+echo "  - server.crt: Server certificate"
+echo "  - bundle.crt: Combined certificate bundle"
+`;
+
+            // Generate Windows batch script
+            const batScript = `@echo off
+REM OpenSSL Certificate Generation Script
+REM Generated by xcancel-forwarder setup wizard
+
+echo Generating certificates with custom parameters...
+
+REM 1. Generate CA private key
+echo Step 1/8: Generating CA private key...
+openssl genrsa -out ca.key ${keySize}
+if errorlevel 1 goto :error
+
+REM 2. Generate CA certificate
+echo Step 2/8: Generating CA certificate...
+openssl req -new -x509 -days ${validityDays} -key ca.key -out ca.crt -subj "${caSubject}"
+if errorlevel 1 goto :error
+
+REM 3. Generate server private key
+echo Step 3/8: Generating server private key...
+openssl genrsa -out server.key ${keySize}
+if errorlevel 1 goto :error
+
+REM 4. Create server certificate signing request (CSR)
+echo Step 4/8: Creating server CSR...
+openssl req -new -key server.key -out server.csr -subj "${serverSubject}"
+if errorlevel 1 goto :error
+
+REM 5. Create SAN configuration file
+echo Step 5/8: Creating SAN configuration...
+(
+echo [req]
+echo distinguished_name = req_distinguished_name
+echo req_extensions = v3_req
+echo.
+echo [req_distinguished_name]
+echo.
+echo [v3_req]
+echo subjectAltName = @alt_names
+echo.
+echo [alt_names]
+echo DNS.1 = twitter.com
+echo DNS.2 = *.twitter.com
+echo DNS.3 = x.com
+echo DNS.4 = *.x.com
+echo DNS.5 = t.co
+echo DNS.6 = *.t.co
+) > san.cnf
+
+REM 6. Sign server certificate with CA
+echo Step 6/8: Signing server certificate...
+openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days ${validityDays} -extensions v3_req -extfile san.cnf
+if errorlevel 1 goto :error
+
+REM 7. Create certificate bundle
+echo Step 7/8: Creating certificate bundle...
+copy /b server.crt+ca.crt bundle.crt
+if errorlevel 1 goto :error
+
+REM 8. Clean up
+echo Step 8/8: Cleaning up temporary files...
+del server.csr san.cnf ca.srl
+
+echo.
+echo Certificate generation complete!
+echo.
+echo Generated files:
+echo   - ca.key: CA private key (keep secure!)
+echo   - ca.crt: CA certificate (install on devices)
+echo   - server.key: Server private key
+echo   - server.crt: Server certificate
+echo   - bundle.crt: Combined certificate bundle
+goto :end
+
+:error
+echo.
+echo ERROR: Certificate generation failed!
+exit /b 1
+
+:end
+`;
+
+            // Store scripts in config for download
+            config.manualCertScripts = {
+                bash: bashScript,
+                bat: batScript
+            };
+            config.manualCertParams = { country, state, locality, org, ou, validityDays, keySize, email };
+
+            // Display bash script (primary)
+            document.getElementById('opensslCommandsContent').textContent = bashScript;
+            document.getElementById('opensslCommands').style.display = 'block';
         }
 
         // Certificate generation function
@@ -955,7 +1370,13 @@
             resultDiv.style.display = 'none';
 
             try {
-                const validityYears = parseInt(document.getElementById('certValidityYears').value) || 10;
+                // Read custom parameters from form
+                const country = document.getElementById('genCertCountry').value || 'US';
+                const state = document.getElementById('genCertState').value || 'Local';
+                const locality = document.getElementById('genCertLocality').value || 'Local';
+                const org = document.getElementById('genCertOrg').value || 'xcancel-forwarder';
+                const ou = document.getElementById('genCertOU').value || 'Local Network';
+                const validityYears = parseInt(document.getElementById('genCertValidityYears').value) || 10;
                 const keepCAKey = config.caKeyHandling === 'keep';
 
                 // Step 1: Generate CA key pair
@@ -979,22 +1400,22 @@
 
                 const caAttrs = [{
                     name: 'commonName',
-                    value: 'xcancel-forwarder Root CA'
+                    value: org + ' Root CA'
                 }, {
                     name: 'countryName',
-                    value: 'US'
+                    value: country
                 }, {
                     shortName: 'ST',
-                    value: 'Local'
+                    value: state
                 }, {
                     name: 'localityName',
-                    value: 'Local'
+                    value: locality
                 }, {
                     name: 'organizationName',
-                    value: 'xcancel-forwarder'
+                    value: org
                 }, {
                     shortName: 'OU',
-                    value: 'Local Network'
+                    value: ou
                 }];
 
                 caCert.setSubject(caAttrs);
@@ -1041,16 +1462,16 @@
                     value: 'twitter.com'
                 }, {
                     name: 'countryName',
-                    value: 'US'
+                    value: country
                 }, {
                     shortName: 'ST',
-                    value: 'Local'
+                    value: state
                 }, {
                     name: 'localityName',
-                    value: 'Local'
+                    value: locality
                 }, {
                     name: 'organizationName',
-                    value: 'xcancel-forwarder'
+                    value: org
                 }];
 
                 serverCert.setSubject(serverAttrs);
@@ -1119,6 +1540,16 @@
                     }
                 }
 
+                // Calculate CA certificate fingerprint (SHA-256)
+                progressBar.style.width = '95%';
+                progressText.textContent = 'Calculating certificate fingerprint...';
+                await sleep(100);
+
+                const caCertDer = forge.asn1.toDer(forge.pki.certificateToAsn1(caCert)).getBytes();
+                const md = forge.md.sha256.create();
+                md.update(caCertDer);
+                const fingerprint = md.digest().toHex().toUpperCase().match(/.{2}/g).join(':');
+
                 config.generatedCerts = {
                     caCert: forge.pki.certificateToPem(caCert),
                     caKey: caKeyPem,
@@ -1126,7 +1557,9 @@
                     serverCert: forge.pki.certificateToPem(serverCert),
                     serverKey: forge.pki.privateKeyToPem(serverKeys.privateKey),
                     // Create bundle (server cert + CA cert for chain)
-                    bundle: forge.pki.certificateToPem(serverCert) + forge.pki.certificateToPem(caCert)
+                    bundle: forge.pki.certificateToPem(serverCert) + forge.pki.certificateToPem(caCert),
+                    caFingerprint: fingerprint,
+                    caSerialNumber: caCert.serialNumber
                 };
 
                 // Complete
@@ -1161,6 +1594,14 @@
                         <li>Valid until: ${expiryDate}</li>
                         <li>CA private key: ${caKeyStatus}</li>
                     </ul>
+                    <div style="margin-top: 15px; padding: 10px; background: #fff; border: 1px solid #c3e6cb; border-radius: 4px; font-family: monospace; font-size: 0.85em;">
+                        <strong style="color: #155724;">CA Certificate Fingerprint (SHA-256):</strong><br>
+                        <span style="color: #333; word-break: break-all;">${fingerprint}</span>
+                    </div>
+                    <p style="margin-top: 10px; font-size: 0.9em; color: #666;">
+                        <strong>Note:</strong> This unique fingerprint proves your CA was generated fresh on your device, not a pre-made certificate.
+                        You can verify this fingerprint after installing the CA on your devices.
+                    </p>
                     <p style="margin-top: 10px;"><strong>Next:</strong> The certificates will be included in your download. You'll need to install the CA certificate (ca.crt) on your devices. See INSTALL_CA.md for instructions.</p>
                 `;
 
@@ -1339,6 +1780,90 @@ DNS.6 = *.t.co
             return content;
         }
 
+        function generateHostsFile() {
+            // Determine which IP to use
+            let ip;
+            if (config.networking === 'macvlan') {
+                ip = config.serverIp;
+            } else if (config.dockerHostIp) {
+                ip = config.dockerHostIp;
+            } else {
+                // This shouldn't happen due to step flow, but fallback to placeholder
+                ip = '<YOUR_DOCKER_HOST_IP>';
+            }
+
+            let content = '# /etc/hosts format file for X/Twitter → xcancel redirect\n';
+            content += '# Generated by xcancel-forwarder setup wizard\n';
+            content += '#\n';
+            content += '# INSTALLATION INSTRUCTIONS:\n';
+            content += '#\n';
+
+            if (config.dns === 'pihole') {
+                content += '# Pi-hole Users:\n';
+                content += '#   Option 1: Host this file on your server and add as adlist:\n';
+                content += '#     1. Place this file in your web server\'s document root as "hosts.txt"\n';
+                content += '#     2. In Pi-hole admin, go to Adlists\n';
+                content += `#     3. Add: http://${ip}/hosts.txt\n`;
+                content += '#\n';
+                content += '#   Option 2: Add as local DNS records:\n';
+                content += '#     1. In Pi-hole admin, go to Local DNS → DNS Records\n';
+                content += '#     2. Add each domain below with this IP address\n';
+                content += '#\n';
+            } else if (config.dns === 'unifi') {
+                content += '# UniFi/Ubiquiti Users:\n';
+                content += '#   1. Log in to your UniFi controller\n';
+                content += '#   2. Go to Settings → Networks → [Your Network] → DHCP\n';
+                content += '#   3. Scroll to "DHCP Name Server" → Custom DNS Entries\n';
+                content += '#   4. Add each domain below as a custom DNS entry pointing to this IP\n';
+                content += '#\n';
+            } else if (config.dns === 'router') {
+                content += '# Router DNS Override:\n';
+                content += '#   1. Log in to your router\'s admin interface\n';
+                content += '#   2. Find DNS or DHCP settings\n';
+                content += '#   3. Look for "DNS Override", "Custom DNS", or "Static DNS" entries\n';
+                content += '#   4. Add each domain below pointing to this IP address\n';
+                content += '#\n';
+            } else if (config.dns === 'manual') {
+                content += '# Manual /etc/hosts Configuration:\n';
+                content += '#   Linux/Mac:\n';
+                content += '#     1. Edit /etc/hosts with sudo: sudo nano /etc/hosts\n';
+                content += '#     2. Copy the entries below to the end of the file\n';
+                content += '#     3. Save and exit (Ctrl+X, then Y, then Enter)\n';
+                content += '#\n';
+                content += '#   Windows:\n';
+                content += '#     1. Run Notepad as Administrator\n';
+                content += '#     2. Open: C:\\Windows\\System32\\drivers\\etc\\hosts\n';
+                content += '#     3. Copy the entries below to the end of the file\n';
+                content += '#     4. Save and close\n';
+                content += '#\n';
+            }
+
+            content += '# Domain Mappings:\n';
+            content += '#\n';
+            content += '# These entries redirect X/Twitter domains to your local xcancel proxy.\n';
+            content += '# All traffic will be redirected to xcancel.com instead.\n';
+            content += '#\n\n';
+
+            // Add the actual hosts entries
+            const domains = [
+                'twitter.com',
+                'www.twitter.com',
+                'mobile.twitter.com',
+                'api.twitter.com',
+                'x.com',
+                'www.x.com',
+                'mobile.x.com',
+                'api.x.com',
+                't.co'
+            ];
+
+            for (const domain of domains) {
+                content += `${ip} ${domain}\n`;
+            }
+
+            return content;
+        }
+
         function generateDockerCompose() {
             const isCaddy = config.webServer === 'caddy';
             const isMacvlan = config.networking === 'macvlan';
@@ -1382,7 +1907,8 @@ DNS.6 = *.t.co
                 content += '    image: nginx:1.27-alpine\n';
                 content += '    container_name: xcancel-nginx\n';
             }
-            content += '    restart: unless-stopped\n\n';
+            content += '    restart: unless-stopped\n';
+            content += '    env_file: xcancel.env\n\n';
 
             // Networking for service
             if (isMacvlan) {
@@ -1405,11 +1931,21 @@ DNS.6 = *.t.co
                 content += '      - ./nginx/conf.d:/etc/nginx/conf.d:ro\n';
                 content += '      - ./nginx/ssl:/etc/nginx/ssl:ro\n';
                 content += '      - ./nginx/logs:/var/log/nginx\n';
+                // Note: Pi-hole uses dynamic hosts.txt generation (no file mount needed)
+                // Only mount for other DNS methods (unifi/router/manual)
+                if (config.dns !== 'dnsmasq' && config.dns !== 'pihole' && !config.skipHostsFile) {
+                    content += '      - ./hosts.txt:/etc/nginx/hosts.txt:ro\n';
+                }
             } else {
                 content += '      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro\n';
                 content += '      - ./caddy/ssl:/etc/caddy/ssl:ro\n';
                 content += '      - caddy_data:/data\n';
                 content += '      - caddy_config:/config\n';
+                // Note: Pi-hole uses dynamic hosts.txt generation (no file mount needed)
+                // Only mount for other DNS methods (unifi/router/manual)
+                if (config.dns !== 'dnsmasq' && config.dns !== 'pihole' && !config.skipHostsFile) {
+                    content += '      - ./hosts.txt:/etc/caddy/hosts.txt:ro\n';
+                }
             }
 
             // Environment
@@ -1436,6 +1972,7 @@ DNS.6 = *.t.co
                     content += '    image: jpillora/dnsmasq:latest\n';
                     content += '    container_name: xcancel-dnsmasq\n';
                     content += '    restart: unless-stopped\n';
+                    content += '    env_file: xcancel.env\n';
                     content += '    networks:\n';
                     content += '      macvlan_lan:\n';
                     content += `        ipv4_address: ${dnsmasqIp}\n`;
@@ -1473,8 +2010,6 @@ DNS.6 = *.t.co
             content += '### 1. Extract and Place Configuration Files\n\n';
             content += 'Extract the ZIP to your xcancel-forwarder directory, then:\n\n';
             content += '```bash\n';
-            content += '# Rename env to .env (dot-files are hidden by default)\n';
-            content += 'mv env .env\n';
             if (config.dns === 'dnsmasq' && config.networking === 'macvlan') {
                 content += '\n# dnsmasq.conf is already in the dnsmasq/ directory\n';
             }
@@ -1529,8 +2064,8 @@ DNS.6 = *.t.co
             const container = document.getElementById('nextStepsSection');
             let html = '<div class="info-box"><h3>Next Steps:</h3><ol style="margin-left: 20px; line-height: 2;">';
 
-            html += `<li>Download the configuration files above (or download all as ZIP)</li>`;
-            html += `<li>Extract to your xcancel-forwarder directory and rename <code>env</code> to <code>.env</code></li>`;
+            html += `<li>Download the configuration ZIP</li>`;
+            html += `<li>Extract to your xcancel-forwarder directory</li>`;
 
             if (config.ssl === 'mkcert') {
                 html += '<li>Install mkcert and generate certificates (see instructions)</li>';
@@ -1548,7 +2083,7 @@ DNS.6 = *.t.co
 
         function downloadEnvFile() {
             const content = generateEnvFile();
-            downloadFile('.env', content);
+            downloadFile('xcancel.env', content);
         }
 
         function downloadDockerCompose() {
@@ -1573,9 +2108,9 @@ DNS.6 = *.t.co
                 const zip = new JSZip();
                 const folder = zip.folder('xcancel-forwarder');
 
-                // Add .env file
+                // Add xcancel.env file (visible, no dot prefix)
                 const envContent = generateEnvFile();
-                folder.file('.env', envContent);
+                folder.file('xcancel.env', envContent);
 
                 // Add docker-compose file
                 const { filename, content } = generateDockerCompose();
@@ -1584,7 +2119,7 @@ DNS.6 = *.t.co
                 // Add web server configuration files
                 if (config.webServer === 'nginx') {
                     // Add nginx config
-                    const nginxConfig = `# Catches twitter/x hostnames and anything else (default_server) and 301s to xcancel.com
+                    let nginxConfig = `# Catches twitter/x hostnames and anything else (default_server) and 301s to xcancel.com
 server {
     ssl_protocols TLSv1.2 TLSv1.3;
 
@@ -1605,7 +2140,37 @@ server {
 
     add_header Alt-Svc 'h3=":443"; ma=86400' always;  # advertise HTTP/3
     add_header X-Protocol $server_protocol always;
+`;
 
+                    // Add hosts.txt route only for Pi-hole
+                    if (config.dns === 'pihole' && !config.skipHostsFile) {
+                        nginxConfig += `
+    # Dynamically generate hosts file using server's IP
+    # Perfect for Pi-hole adlist imports - always uses the correct IP
+    location = /hosts.txt {
+        default_type text/plain;
+        add_header Cache-Control "public, max-age=300";
+
+        return 200 "# X/Twitter → xcancel hosts file (dynamically generated)
+# Add this URL to Pi-hole as an adlist
+# Generated at: $time_iso8601
+# Server IP: $server_addr
+
+$server_addr twitter.com
+$server_addr www.twitter.com
+$server_addr mobile.twitter.com
+$server_addr api.twitter.com
+$server_addr x.com
+$server_addr www.x.com
+$server_addr mobile.x.com
+$server_addr api.x.com
+$server_addr t.co
+";
+    }
+`;
+                    }
+
+                    nginxConfig += `
     location / {
         return 301 https://xcancel.com$request_uri;
     }
@@ -1756,7 +2321,7 @@ openssl req -new -key ca.key -out new_cert.csr
                     }
                 } else if (config.webServer === 'caddy') {
                     // Add Caddyfile
-                    const caddyConfig = `# Caddy configuration for X/Twitter → xcancel redirect
+                    let caddyConfig = `# Caddy configuration for X/Twitter → xcancel redirect
 # Much simpler than nginx!
 
 # Handle all Twitter/X domains
@@ -1764,7 +2329,36 @@ twitter.com, www.twitter.com, x.com, www.x.com, t.co, www.t.co {
 	# Use custom SSL certificates
 	# Comment out this line to skip HTTPS (HTTP-only redirect)
 	tls /etc/caddy/ssl/twitter_bundle.pem /etc/caddy/ssl/twitter_key.pem
+`;
 
+                    // Add hosts.txt route only for Pi-hole
+                    if (config.dns === 'pihole' && !config.skipHostsFile) {
+                        caddyConfig += `
+	# Dynamically generate hosts file using server's IP
+	# Perfect for Pi-hole adlist imports - always uses the correct IP
+	handle /hosts.txt {
+		header Content-Type text/plain
+		header Cache-Control "public, max-age=300"
+
+		respond \`# X/Twitter → xcancel hosts file (dynamically generated)
+# Add this URL to Pi-hole as an adlist
+# Server IP: {http.vars.server_ip}
+
+{http.vars.server_ip} twitter.com
+{http.vars.server_ip} www.twitter.com
+{http.vars.server_ip} mobile.twitter.com
+{http.vars.server_ip} api.twitter.com
+{http.vars.server_ip} x.com
+{http.vars.server_ip} www.x.com
+{http.vars.server_ip} mobile.x.com
+{http.vars.server_ip} api.x.com
+{http.vars.server_ip} t.co
+\` 200
+	}
+`;
+                    }
+
+                    caddyConfig += `
 	# Redirect to xcancel, preserving the URI path
 	redir https://xcancel.com{uri} permanent
 }
@@ -1924,6 +2518,19 @@ openssl req -new -key ca.key -out new_cert.csr
                 if (config.dns === 'dnsmasq' && config.networking === 'macvlan') {
                     const dnsmasqContent = generateDnsmasqConf();
                     folder.file('dnsmasq/dnsmasq.conf', dnsmasqContent);
+                }
+
+                // Add OpenSSL scripts if manual SSL is selected
+                if (config.ssl === 'manual' && config.manualCertScripts) {
+                    folder.file('generate-certs.sh', config.manualCertScripts.bash);
+                    folder.file('generate-certs.bat', config.manualCertScripts.bat);
+                }
+
+                // Add hosts file for non-dnsmasq, non-pihole DNS methods (unless skipped)
+                // Pi-hole uses dynamic generation, others need static file
+                if (config.dns !== 'dnsmasq' && config.dns !== 'pihole' && !config.skipHostsFile) {
+                    const hostsContent = generateHostsFile();
+                    folder.file('hosts.txt', hostsContent);
                 }
 
                 // Add instructions
