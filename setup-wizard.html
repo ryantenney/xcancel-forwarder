@@ -1550,14 +1550,21 @@ exit /b 1
                 md.update(caCertDer);
                 const fingerprint = md.digest().toHex().toUpperCase().match(/.{2}/g).join(':');
 
+                // Generate CA cert in multiple formats for cross-platform compatibility
+                const caCertPem = forge.pki.certificateToPem(caCert);
+                const caCertDerBytes = forge.asn1.toDer(forge.pki.certificateToAsn1(caCert)).getBytes();
+                // Convert DER bytes to base64 for storage
+                const caCertDerBase64 = forge.util.encode64(caCertDerBytes);
+
                 config.generatedCerts = {
-                    caCert: forge.pki.certificateToPem(caCert),
+                    caCert: caCertPem,
+                    caCertDer: caCertDerBase64, // DER format (base64 encoded for storage)
                     caKey: caKeyPem,
                     caKeyEncrypted: caKeyEncrypted,
                     serverCert: forge.pki.certificateToPem(serverCert),
                     serverKey: forge.pki.privateKeyToPem(serverKeys.privateKey),
                     // Create bundle (server cert + CA cert for chain)
-                    bundle: forge.pki.certificateToPem(serverCert) + forge.pki.certificateToPem(caCert),
+                    bundle: forge.pki.certificateToPem(serverCert) + caCertPem,
                     caFingerprint: fingerprint,
                     caSerialNumber: caCert.serialNumber
                 };
@@ -2216,18 +2223,32 @@ Without the DNS override, these certificates have no effect. Without the trusted
                     if (config.ssl === 'generate' && config.generatedCerts) {
                         folder.file('nginx/ssl/twitter_bundle.pem', config.generatedCerts.bundle);
                         folder.file('nginx/ssl/twitter_key.pem', config.generatedCerts.serverKey);
-                        folder.file('nginx/ssl/ca.crt', config.generatedCerts.caCert);
+
+                        // Add CA certificate in multiple formats for cross-platform compatibility
+                        folder.file('nginx/ssl/ca.pem', config.generatedCerts.caCert);  // PEM format
+                        folder.file('nginx/ssl/ca.crt', config.generatedCerts.caCert);  // PEM format (.crt extension)
+                        // DER format for Windows - decode base64 and add as binary
+                        const caCertDerBinary = forge.util.decode64(config.generatedCerts.caCertDer);
+                        folder.file('nginx/ssl/ca.cer', caCertDerBinary, {binary: true});  // DER format (.cer extension)
+
                         if (config.generatedCerts.caKey) {
                             folder.file('nginx/ssl/ca.key', config.generatedCerts.caKey);
                         }
                         // Add installation instructions
                         const installGuide = `# Installing the CA Certificate
 
-The CA certificate (ca.crt) must be installed on each device that will access twitter.com through this proxy.
+The CA certificate must be installed on each device that will access twitter.com through this proxy.
+
+**Multiple formats provided for compatibility:**
+- \`ca.pem\` - PEM format (standard)
+- \`ca.crt\` - PEM format with .crt extension (common on Linux/macOS)
+- \`ca.cer\` - DER format (Windows-friendly)
+
+All three files contain the same CA certificate in different encodings. Use whichever format works best for your platform.
 
 ## macOS
 
-1. Double-click \`ca.crt\`
+1. Double-click \`ca.crt\` (or \`ca.cer\`)
 2. Keychain Access will open
 3. Find "xcancel-forwarder Root CA" in the list
 4. Double-click it, expand "Trust"
@@ -2245,7 +2266,9 @@ The CA certificate (ca.crt) must be installed on each device that will access tw
 
 ## Windows
 
-1. Double-click \`ca.crt\`
+**Recommended: Use \`ca.cer\` (DER format) for best compatibility**
+
+1. Double-click \`ca.cer\` (or \`ca.crt\`)
 2. Click "Install Certificate"
 3. Choose "Current User"
 4. Select "Place all certificates in the following store"
@@ -2409,18 +2432,32 @@ Without the DNS override, these certificates have no effect. Without the trusted
                     if (config.ssl === 'generate' && config.generatedCerts) {
                         folder.file('caddy/ssl/twitter_bundle.pem', config.generatedCerts.bundle);
                         folder.file('caddy/ssl/twitter_key.pem', config.generatedCerts.serverKey);
-                        folder.file('caddy/ssl/ca.crt', config.generatedCerts.caCert);
+
+                        // Add CA certificate in multiple formats for cross-platform compatibility
+                        folder.file('caddy/ssl/ca.pem', config.generatedCerts.caCert);  // PEM format
+                        folder.file('caddy/ssl/ca.crt', config.generatedCerts.caCert);  // PEM format (.crt extension)
+                        // DER format for Windows - decode base64 and add as binary
+                        const caCertDerBinary = forge.util.decode64(config.generatedCerts.caCertDer);
+                        folder.file('caddy/ssl/ca.cer', caCertDerBinary, {binary: true});  // DER format (.cer extension)
+
                         if (config.generatedCerts.caKey) {
                             folder.file('caddy/ssl/ca.key', config.generatedCerts.caKey);
                         }
                         // Add installation instructions (same as nginx)
                         const installGuide = `# Installing the CA Certificate
 
-The CA certificate (ca.crt) must be installed on each device that will access twitter.com through this proxy.
+The CA certificate must be installed on each device that will access twitter.com through this proxy.
+
+**Multiple formats provided for compatibility:**
+- \`ca.pem\` - PEM format (standard)
+- \`ca.crt\` - PEM format with .crt extension (common on Linux/macOS)
+- \`ca.cer\` - DER format (Windows-friendly)
+
+All three files contain the same CA certificate in different encodings. Use whichever format works best for your platform.
 
 ## macOS
 
-1. Double-click \`ca.crt\`
+1. Double-click \`ca.crt\` (or \`ca.cer\`)
 2. Keychain Access will open
 3. Find "xcancel-forwarder Root CA" in the list
 4. Double-click it, expand "Trust"
@@ -2438,7 +2475,9 @@ The CA certificate (ca.crt) must be installed on each device that will access tw
 
 ## Windows
 
-1. Double-click \`ca.crt\`
+**Recommended: Use \`ca.cer\` (DER format) for best compatibility**
+
+1. Double-click \`ca.cer\` (or \`ca.crt\`)
 2. Click "Install Certificate"
 3. Choose "Current User"
 4. Select "Place all certificates in the following store"
