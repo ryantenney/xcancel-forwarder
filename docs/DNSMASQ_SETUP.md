@@ -2,6 +2,8 @@
 
 Guide for using the included dnsmasq DNS server to redirect X/Twitter domains.
 
+**For advanced configuration**: See [DNSMASQ_ADVANCED.md](DNSMASQ_ADVANCED.md) for multiple upstream DNS servers, domain-specific upstreams, DHCP server configuration, custom DNS records, performance tuning, and security considerations.
+
 ## When to Use This Option
 
 Use the included dnsmasq server if:
@@ -323,102 +325,18 @@ dig @192.168.1.101 twitter.com
 If redirected domains work but other domains don't resolve:
 
 1. Check upstream DNS is accessible:
-   ```bash
-   docker compose exec dnsmasq ping -c 3 1.1.1.1
-   ```
-
-2. Try different upstream DNS in `dnsmasq.conf`:
-   ```
-   server=8.8.8.8
-   ```
-
-3. Check if your router/ISP is blocking DNS on port 53
-
-## Advanced Configuration
-
-### Multiple Upstream DNS Servers
 
 ```bash
-# In dnsmasq.conf
-server=1.1.1.1
-server=1.0.0.1
+docker compose exec dnsmasq ping -c 3 1.1.1.1
+```
+
+2. Try different upstream DNS in `dnsmasq.conf`:
+
+```
 server=8.8.8.8
 ```
 
-dnsmasq will query them in order and fall back if one fails.
-
-### Domain-Specific Upstream
-
-```bash
-# Use specific DNS for specific domains
-server=/local.domain/192.168.1.1
-server=/company.com/10.0.0.1
-```
-
-### DHCP Server (Advanced)
-
-dnsmasq can also be a DHCP server. This is beyond the scope of this guide, but see [dnsmasq documentation](http://www.thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html).
-
-### Custom DNS Records
-
-Add more overrides in `dnsmasq.conf`:
-
-```bash
-# Redirect additional domains
-address=/example.com/192.168.1.200
-
-# Specific A records
-host-record=custom.local,192.168.1.50
-
-# CNAME records
-cname=alias.local,target.local
-```
-
-## Performance Tuning
-
-### Cache Size
-
-Default is 1000 entries. Increase for better performance:
-
-```bash
-# In dnsmasq.conf
-cache-size=10000
-```
-
-### Negative Caching
-
-Cache "domain doesn't exist" responses:
-
-```bash
-# In dnsmasq.conf
-neg-ttl=3600
-```
-
-## Security Considerations
-
-### Exposure
-
-dnsmasq is exposed to your entire LAN. Ensure:
-
-- Your LAN is trusted
-- Router firewall blocks external DNS queries
-- Only trusted devices on your network
-
-### DNS Amplification Attacks
-
-If accidentally exposed to internet, dnsmasq could be used for DNS amplification attacks. Always:
-
-- Run behind firewall
-- Don't forward port 53 on router
-- Use macvlan to isolate from external networks
-
-### Log Retention
-
-Query logs can grow large and contain privacy-sensitive information:
-
-- Disable `log-queries` in production
-- Rotate logs if enabled
-- Don't commit logs to git
+3. Check if your router/ISP is blocking DNS on port 53
 
 ## Stopping dnsmasq
 
@@ -427,13 +345,14 @@ To stop using dnsmasq:
 1. **Reconfigure clients** to use original DNS (router, ISP, or 1.1.1.1)
 
 2. **Stop the container:**
-   ```bash
-   docker compose stop dnsmasq
-   # Or comment out dnsmasq service in docker-compose.yaml
-   docker compose up -d
-   ```
 
-3. **Clear DNS caches** on clients (see [PIHOLE_SETUP.md](PIHOLE_SETUP.md) for instructions)
+```bash
+docker compose stop dnsmasq
+# Or comment out dnsmasq service in docker-compose.yaml
+docker compose up -d
+```
+
+3. **Clear DNS caches** on clients (see [TESTING.md](TESTING.md#clearing-caches) for instructions)
 
 ## dnsmasq vs Pi-hole
 
@@ -452,3 +371,17 @@ To stop using dnsmasq:
 - Need more advanced features (DHCP, regex blocking, groups)
 
 You can also use both - Pi-hole can use dnsmasq as an upstream DNS server.
+
+## Advanced Configuration
+
+For advanced dnsmasq features, see:
+
+- **[DNSMASQ_ADVANCED.md](DNSMASQ_ADVANCED.md)** - Multiple upstream DNS, domain-specific upstreams, DHCP server, custom DNS records, performance tuning, security considerations
+
+## Additional Resources
+
+- **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Commands cheat sheet
+- **[QUICKSTART.md](QUICKSTART.md)** - Complete setup guide
+- **[TESTING.md](TESTING.md)** - Testing and verification
+- **[PIHOLE_SETUP.md](PIHOLE_SETUP.md)** - Alternative using Pi-hole
+- **[OTHER_DNS.md](OTHER_DNS.md)** - Other DNS options

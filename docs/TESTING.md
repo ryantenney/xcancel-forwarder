@@ -1,6 +1,8 @@
 # Testing and Verification
 
-Complete guide for testing your X/Twitter → xcancel redirect setup.
+Essential tests to verify your X/Twitter → xcancel redirect setup is working.
+
+**For advanced testing**: See [TESTING_ADVANCED.md](TESTING_ADVANCED.md) for end-to-end testing, network-wide verification, monitoring, performance testing, and automated test scripts.
 
 ## Pre-Flight Checklist
 
@@ -241,7 +243,7 @@ openssl s_client -connect 192.168.1.100:443 < /dev/null | openssl x509 -text
 **SSL handshake failure:**
 
 - Check certificate files exist in `nginx/ssl/`
-- Verify permissions (644 for .pem, 600 for .key)
+- Verify permissions (644 for .crt, 600 for .key)
 - Check nginx error logs: `docker compose logs nginx`
 
 ## Test 5: Browser Test
@@ -279,7 +281,7 @@ Repeat tests on mobile devices (iOS/Android):
 
 - CA not installed on this device
 - Certificate doesn't match domain
-- See [SSL_SETUP.md](SSL_SETUP.md) for CA installation
+- See [SSL_SETUP_MKCERT.md](SSL_SETUP_MKCERT.md) or [SSL_SETUP.md](SSL_SETUP.md) for CA installation
 
 **Not redirecting:**
 
@@ -293,45 +295,9 @@ Repeat tests on mobile devices (iOS/Android):
 - Multiple DNS servers configured, using wrong one
 - VPN overriding DNS settings
 
-## Test 6: End-to-End Test
-
-Complete test from a clean device:
-
-1. **Configure device DNS** to use your DNS server
-2. **Clear all caches** (DNS, browser)
-3. **Navigate to** `https://twitter.com/verified`
-4. **Should see** xcancel.com page load
-5. **Check URL** in address bar: `https://xcancel.com/verified`
-6. **No warnings** or errors
-
-Success = you're viewing Twitter content via xcancel without ever hitting X's servers!
-
-## Test 7: Network-Wide Verification
-
-If using router/Pi-hole (network-wide DNS):
-
-### Test Multiple Devices
-
-Verify redirect works on:
-
-- [ ] Desktop computer
-- [ ] Laptop
-- [ ] Smartphone
-- [ ] Tablet
-- [ ] Smart TV (if applicable)
-- [ ] Any other network-connected device
-
-### Test Different Browsers
-
-- [ ] Chrome/Chromium
-- [ ] Firefox
-- [ ] Safari
-- [ ] Edge
-- [ ] Mobile browsers
-
 ## Clearing Caches
 
-If tests aren't working, clear caches:
+If tests aren't working, clear caches. This solves 90% of issues.
 
 ### DNS Server Cache
 
@@ -400,108 +366,13 @@ sudo systemctl restart dnsmasq
 
 **Firefox:**
 
-1. Close and reopen browser
-2. Or visit `about:config`
-3. Set `network.dnsCacheExpiration` to `0` temporarily
+1. Visit `about:networking#dns`
+2. Click "Clear DNS Cache"
 
 **Safari:**
 
 - Quit Safari completely
 - Reopen
-
-## Monitoring and Logs
-
-### nginx Access Logs
-
-```bash
-# Watch nginx access logs
-docker compose logs -f nginx
-
-# Or view log file directly
-tail -f nginx/logs/access.log
-```
-
-Look for requests like:
-
-```
-192.168.1.50 - [21/Jan/2025:12:00:00 -0500] "GET / HTTP/2.0" 301 0 "-" "Mozilla/5.0..."
-```
-
-### DNS Query Logs
-
-**Pi-hole:**
-
-Web interface → Tools → Query Log
-
-**dnsmasq:**
-
-If you enabled `log-queries`:
-
-```bash
-docker compose logs -f dnsmasq
-```
-
-### Check Traffic
-
-On your router or using tcpdump:
-
-```bash
-# Monitor DNS traffic
-sudo tcpdump -i any port 53 -v
-
-# Monitor HTTP/HTTPS traffic to nginx
-sudo tcpdump -i any host 192.168.1.100
-```
-
-## Performance Test
-
-Verify redirect is fast:
-
-```bash
-# Time the redirect
-time curl -s -o /dev/null -w "HTTP Code: %{http_code}\nTime: %{time_total}s\n" http://twitter.com
-
-# Should complete in < 0.1s on local network
-```
-
-## Automated Testing Script
-
-Create a comprehensive test:
-
-```bash
-#!/bin/bash
-# Test all aspects of the redirect
-
-echo "=== Testing DNS Resolution ==="
-for domain in twitter.com x.com t.co; do
-  echo -n "$domain: "
-  nslookup $domain | grep Address | tail -1 | awk '{print $2}'
-done
-
-echo -e "\n=== Testing HTTP Redirect ==="
-for domain in twitter.com x.com t.co; do
-  echo -n "$domain: "
-  curl -s -o /dev/null -w "%{http_code}" http://$domain
-  echo
-done
-
-echo -e "\n=== Testing HTTPS Redirect ==="
-for domain in twitter.com x.com t.co; do
-  echo -n "$domain: "
-  curl -s -o /dev/null -w "%{http_code}" https://$domain 2>/dev/null || echo "SSL Error"
-  echo
-done
-
-echo -e "\n=== Testing Full Redirect Chain ==="
-curl -I -L http://twitter.com 2>&1 | grep -E "HTTP|Location"
-```
-
-Save as `test-all.sh` and run:
-
-```bash
-chmod +x test-all.sh
-./test-all.sh
-```
 
 ## Common Issues Checklist
 
@@ -513,7 +384,7 @@ If things aren't working, check:
 - [ ] Firewall allows ports 80/443
 - [ ] SSL certificates exist: `ls nginx/ssl/`
 - [ ] Client is using your DNS server
-- [ ] Caches have been cleared
+- [ ] Caches have been cleared (DNS server + client + browser)
 - [ ] No VPN overriding DNS
 
 ## Success Indicators
@@ -531,7 +402,39 @@ You'll know it's working when:
 
 Once everything is working:
 
-- Document which devices have CA installed
-- Set calendar reminder for certificate renewal (825 days)
-- Consider adding more domains if needed
-- Share with others who want to avoid X!
+**Install CA on other devices** (if using SSL):
+
+- [ ] Other computers
+- [ ] Mobile devices (iOS/Android)
+- [ ] Tablets
+
+See [SSL_SETUP_MKCERT.md](SSL_SETUP_MKCERT.md) for device-specific instructions.
+
+**Maintenance**:
+
+```bash
+# View logs
+docker compose logs -f nginx
+
+# Update images
+docker compose pull && docker compose up -d
+
+# Restart services
+docker compose restart
+```
+
+**Set reminder**: Certificate renewal in 825 days (OpenSSL) or when mkcert CA expires.
+
+## Advanced Testing
+
+For more comprehensive testing, see:
+
+- **[TESTING_ADVANCED.md](TESTING_ADVANCED.md)** - End-to-end tests, network-wide verification, monitoring, performance testing, automated test scripts
+
+## Additional Resources
+
+- **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Commands cheat sheet
+- **[QUICKSTART.md](QUICKSTART.md)** - Setup guide
+- **[SSL_SETUP_MKCERT.md](SSL_SETUP_MKCERT.md)** - SSL certificate setup
+- **[PIHOLE_SETUP.md](PIHOLE_SETUP.md)** - Pi-hole configuration
+- **[DNSMASQ_SETUP.md](DNSMASQ_SETUP.md)** - dnsmasq configuration
