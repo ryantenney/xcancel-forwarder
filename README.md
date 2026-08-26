@@ -135,6 +135,7 @@ See [Caddy Alternative](docs/CADDY_ALTERNATIVE.md)
 ### SSL Certificates
 
 - **mkcert** (recommended): Automatic trusted certificates
+- **Your own CA (CSR)**: The web wizard can generate a key + CSR for you to sign with an existing CA, then verify and bundle the signed certificate you drop back in
 - **Manual OpenSSL**: Full control over CA parameters
 
 See [SSL Setup Guide](docs/SSL_SETUP_MKCERT.md) or [Advanced SSL](docs/SSL_SETUP.md)

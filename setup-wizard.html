@@ -176,6 +176,21 @@
             border-color: #667eea;
         }
 
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.85em;
+            transition: border-color 0.2s;
+        }
+
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
         .form-group .hint {
             font-size: 0.9em;
             color: #999;
@@ -550,6 +565,14 @@
                         </div>
                     </div>
 
+                    <div class="option" onclick="selectOption('ssl', 'csr', this)">
+                        <input type="radio" name="ssl" value="csr">
+                        <div>
+                            <h3>Bring Your Own CA (CSR)</h3>
+                            <p class="desc">Generate a key + CSR here, sign it with your own CA, then drop the signed certificate back in.</p>
+                        </div>
+                    </div>
+
                     <div class="option" onclick="selectOption('ssl', 'manual', this)">
                         <input type="radio" name="ssl" value="manual">
                         <div>
@@ -733,6 +756,104 @@
                 <div class="buttons">
                     <button class="btn-back" onclick="prevStep()">Back</button>
                     <button class="btn-next" onclick="showOpenSSLCommands(); nextStep();">Next</button>
+                </div>
+            </div>
+
+            <!-- Step 4.7: Bring Your Own CA (CSR workflow) -->
+            <div class="step" id="step4_7">
+                <h2>Bring Your Own CA</h2>
+                <p>Generate a private key and CSR here, sign the CSR with your own CA, then drop the results back in below. Already have a signed certificate and key from a previous visit? Skip straight to step 2.</p>
+
+                <!-- 1. Generate key + CSR -->
+                <div style="margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                    <h3>1. Generate Key &amp; CSR</h3>
+                    <p style="margin-bottom: 15px; color: #666;">The CSR requests SANs for twitter.com, x.com, and t.co (plus wildcards).</p>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Country (C):</label>
+                            <input type="text" id="csrCertCountry" value="US" maxlength="2"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">State/Province (ST):</label>
+                            <input type="text" id="csrCertState" value="Local"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Locality/City (L):</label>
+                            <input type="text" id="csrCertLocality" value="Local"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Organization (O):</label>
+                            <input type="text" id="csrCertOrg" value="xcancel-forwarder"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Organizational Unit (OU):</label>
+                            <input type="text" id="csrCertOU" value="Local Network"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Key Size (bits):</label>
+                            <select id="csrKeySize" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                                <option value="2048" selected>2048 (Standard)</option>
+                                <option value="3072">3072 (High Security)</option>
+                                <option value="4096">4096 (Maximum Security, slow to generate)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button id="csrGenerateBtn" onclick="handleGenerateCsr()"
+                            style="background: #52c41a; color: white; padding: 12px 24px; border: none; border-radius: 8px; font-size: 1em; cursor: pointer; font-weight: 500;">Generate Key &amp; CSR</button>
+
+                    <div id="csrResult" style="display: none; margin-top: 20px;">
+                        <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; border-radius: 4px; margin-bottom: 15px;">
+                            <strong>Download both files now.</strong> The private key exists only in this browser tab - if you close it before finishing, you'll need the downloaded key to come back.
+                        </div>
+                        <button onclick="downloadCsrFile()" style="background: #1677ff; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; margin-right: 10px;">⬇ Download CSR (xcancel.csr)</button>
+                        <button onclick="downloadCsrKeyFile()" style="background: #1677ff; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer;">⬇ Download Private Key (twitter_key.pem)</button>
+
+                        <h4 style="margin-top: 20px;">Sign it with your CA</h4>
+                        <p style="color: #666; font-size: 0.9em;">Use your CA's normal signing process. Make sure it copies the SANs from the CSR - with OpenSSL, for example:</p>
+                        <pre style="background: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto; font-size: 0.85em;"># OpenSSL 3.x - copies the SANs from the CSR:
+openssl x509 -req -in xcancel.csr \
+    -CA your-ca.crt -CAkey your-ca.key -CAcreateserial \
+    -days 825 -sha256 -copy_extensions copy \
+    -out twitter_cert.pem
+
+# OpenSSL 1.x has no -copy_extensions; pass the SANs via an extension file:
+printf 'subjectAltName=DNS:twitter.com,DNS:*.twitter.com,DNS:x.com,DNS:*.x.com,DNS:t.co,DNS:*.t.co\nextendedKeyUsage=serverAuth\n' > san.ext
+openssl x509 -req -in xcancel.csr -CA your-ca.crt -CAkey your-ca.key \
+    -CAcreateserial -days 825 -sha256 -extfile san.ext -out twitter_cert.pem</pre>
+                    </div>
+                </div>
+
+                <!-- 2. Drop the signed material back in -->
+                <div style="margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                    <h3>2. Drop In the Signed Certificate &amp; Key</h3>
+
+                    <div class="form-group" style="margin-top: 15px;">
+                        <label>Signed certificate (PEM) - append your CA chain here too if you want it bundled</label>
+                        <textarea id="csrCertInput" rows="7" spellcheck="false" placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"></textarea>
+                        <input type="file" id="csrCertFile" onchange="loadFileIntoTextarea(this, 'csrCertInput')">
+                        <div class="hint">Paste the PEM text or choose the file your CA produced</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Private key (PEM) - pre-filled if you generated the CSR above</label>
+                        <textarea id="csrKeyInput" rows="7" spellcheck="false" placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"></textarea>
+                        <input type="file" id="csrKeyFile" onchange="loadFileIntoTextarea(this, 'csrKeyInput')">
+                        <div class="hint">Unencrypted RSA key in PEM format (decrypt first if needed: openssl rsa -in enc.key -out plain.key)</div>
+                    </div>
+
+                    <div id="csrVerifyResult" style="display: none; padding: 15px; border-radius: 5px; margin-top: 10px;"></div>
+                </div>
+
+                <div class="buttons">
+                    <button class="btn-back" onclick="prevStep()">Back</button>
+                    <button class="btn-next" onclick="nextStep()">Verify &amp; Continue</button>
                 </div>
             </div>
 
@@ -958,6 +1079,7 @@
                 next: () => {
                     if (config.ssl === 'generate') return 'generateCerts';
                     if (config.ssl === 'manual') return 'manualCerts';
+                    if (config.ssl === 'csr') return 'csrCerts';
                     return 'dns';
                 },
                 prev: () => 'networking'
@@ -979,6 +1101,12 @@
                 next: () => 'dns',
                 prev: () => 'ssl'
             },
+            csrCerts: {
+                id: 'step4_7',
+                next: () => 'dns',
+                prev: () => 'ssl',
+                validate: () => verifyCsrMaterial()
+            },
             dns: {
                 id: 'step5',
                 next: () => {
@@ -992,6 +1120,7 @@
                 prev: () => {
                     if (config.ssl === 'generate') return 'generateCerts';
                     if (config.ssl === 'manual') return 'manualCerts';
+                    if (config.ssl === 'csr') return 'csrCerts';
                     return 'ssl';
                 }
             },
@@ -1069,7 +1198,8 @@
 
         function updateProgress() {
             // Calculate progress based on position in flow
-            const currentIndex = allSteps.indexOf(currentStep);
+            // (side steps like manualCerts/csrCerts aren't in allSteps - clamp to 0)
+            const currentIndex = Math.max(0, allSteps.indexOf(currentStep));
             const progress = (currentIndex / (allSteps.length - 1)) * 100;
             document.getElementById('progressBar').style.width = progress + '%';
         }
@@ -1245,6 +1375,7 @@
                 ssl: {
                     'generate': 'Generate in Browser',
                     'mkcert': 'mkcert',
+                    'csr': 'CA-signed (your own CA)',
                     'manual': 'Manual OpenSSL',
                     'skip': 'Skip SSL (HTTP only)'
                 },
@@ -1680,7 +1811,7 @@ exit /b 1
                 if (keepCAKey) {
                     try {
                         // Use the password if provided, otherwise empty password
-                        const p12Password = password || '';
+                        const p12Password = document.getElementById('caKeyPasswordInput').value || '';
 
                         // Create PKCS#12 bundle with CA cert + CA key
                         const p12Asn1 = forge.pkcs12.toPkcs12Asn1(
@@ -1777,6 +1908,180 @@ exit /b 1
 
         function sleep(ms) {
             return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // ===== Bring Your Own CA (CSR) workflow =====
+
+        const CSR_SAN_DOMAINS = ['twitter.com', '*.twitter.com', 'x.com', '*.x.com', 't.co', '*.t.co'];
+
+        async function handleGenerateCsr() {
+            const btn = document.getElementById('csrGenerateBtn');
+            btn.disabled = true;
+            btn.innerHTML = 'Generating...';
+            await sleep(50); // let the button label paint before the synchronous keygen
+
+            try {
+                const keySize = parseInt(document.getElementById('csrKeySize').value) || 2048;
+                const keys = forge.pki.rsa.generateKeyPair(keySize);
+
+                const csr = forge.pki.createCertificationRequest();
+                csr.publicKey = keys.publicKey;
+                csr.setSubject([{
+                    name: 'commonName',
+                    value: 'twitter.com'
+                }, {
+                    name: 'countryName',
+                    value: document.getElementById('csrCertCountry').value || 'US'
+                }, {
+                    shortName: 'ST',
+                    value: document.getElementById('csrCertState').value || 'Local'
+                }, {
+                    name: 'localityName',
+                    value: document.getElementById('csrCertLocality').value || 'Local'
+                }, {
+                    name: 'organizationName',
+                    value: document.getElementById('csrCertOrg').value || 'xcancel-forwarder'
+                }, {
+                    shortName: 'OU',
+                    value: document.getElementById('csrCertOU').value || 'Local Network'
+                }]);
+                csr.setAttributes([{
+                    name: 'extensionRequest',
+                    extensions: [{
+                        name: 'subjectAltName',
+                        altNames: CSR_SAN_DOMAINS.map(d => ({ type: 2, value: d }))
+                    }]
+                }]);
+                csr.sign(keys.privateKey, forge.md.sha256.create());
+
+                config.csrPem = forge.pki.certificationRequestToPem(csr);
+                config.csrKeyPem = forge.pki.privateKeyToPem(keys.privateKey);
+
+                // Pre-fill the paste-back key field for the same-session round trip
+                document.getElementById('csrKeyInput').value = config.csrKeyPem;
+                document.getElementById('csrResult').style.display = 'block';
+                btn.innerHTML = 'Regenerate Key & CSR';
+            } catch (e) {
+                alert('Failed to generate CSR: ' + e.message);
+                btn.innerHTML = 'Generate Key & CSR';
+            }
+            btn.disabled = false;
+        }
+
+        function downloadCsrFile() {
+            downloadFile('xcancel.csr', config.csrPem);
+        }
+
+        function downloadCsrKeyFile() {
+            downloadFile('twitter_key.pem', config.csrKeyPem);
+        }
+
+        function loadFileIntoTextarea(input, textareaId) {
+            const file = input.files && input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                document.getElementById(textareaId).value = reader.result;
+            };
+            reader.readAsText(file);
+        }
+
+        // Validates the pasted cert (+ optional chain) and key; on success stores
+        // config.csrCerts and returns true so the step graph advances.
+        function verifyCsrMaterial() {
+            const resultDiv = document.getElementById('csrVerifyResult');
+            const show = (ok, html) => {
+                resultDiv.style.display = 'block';
+                resultDiv.style.background = ok ? '#d4edda' : '#f8d7da';
+                resultDiv.style.border = ok ? '1px solid #c3e6cb' : '1px solid #f5c6cb';
+                resultDiv.style.color = ok ? '#155724' : '#721c24';
+                resultDiv.innerHTML = html;
+            };
+            const fail = (msg) => { show(false, '✗ ' + msg); return false; };
+
+            const certText = document.getElementById('csrCertInput').value;
+            const keyText = document.getElementById('csrKeyInput').value;
+
+            if (!certText.trim()) return fail('Paste your CA-signed certificate first (generate the CSR above and sign it with your CA).');
+            if (!keyText.trim()) return fail('Paste the private key that belongs to this certificate.');
+
+            let privateKey;
+            try {
+                privateKey = forge.pki.privateKeyFromPem(keyText);
+            } catch (e) {
+                return fail('Could not parse the private key. Provide an unencrypted RSA key in PEM format (decrypt with: openssl rsa -in enc.key -out plain.key).');
+            }
+
+            const pemBlocks = certText.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g);
+            if (!pemBlocks) return fail('No certificate found - expected at least one "-----BEGIN CERTIFICATE-----" block.');
+
+            let certs;
+            try {
+                certs = pemBlocks.map(p => forge.pki.certificateFromPem(p));
+            } catch (e) {
+                return fail('Could not parse a pasted certificate: ' + e.message);
+            }
+
+            // The server certificate is whichever pasted cert matches the private key;
+            // everything else is treated as the CA chain.
+            const serverIndex = certs.findIndex(c =>
+                c.publicKey && c.publicKey.n &&
+                c.publicKey.n.compareTo(privateKey.n) === 0 &&
+                c.publicKey.e.compareTo(privateKey.e) === 0);
+            if (serverIndex === -1) {
+                return fail('None of the pasted certificates match this private key. Make sure your CA signed the CSR generated here, and that the key is the one from that generation.');
+            }
+
+            const serverCert = certs[serverIndex];
+            const chain = certs.filter((c, i) => i !== serverIndex);
+
+            if (serverCert.validity.notAfter < new Date()) {
+                return fail('The certificate expired on ' + serverCert.validity.notAfter.toLocaleDateString() + '. Sign a fresh CSR with your CA.');
+            }
+
+            // SAN coverage - CAs often drop CSR extensions unless told to copy them
+            const sanExt = serverCert.getExtension('subjectAltName');
+            const names = (sanExt && sanExt.altNames ? sanExt.altNames : []).map(a => a.value);
+            let sanWarning = null;
+            if (!sanExt) {
+                sanWarning = 'The certificate has NO Subject Alternative Names, so modern browsers will reject it. Re-sign so the CSR extensions are kept (e.g. openssl x509 -req -copy_extensions copy ..., or use an -extfile - see the example above).';
+            } else {
+                const missing = ['twitter.com', 'x.com', 't.co'].filter(d => !names.includes(d) && !names.includes('*.' + d));
+                if (missing.length) {
+                    sanWarning = 'The certificate SANs do not cover: ' + missing.join(', ') + '. Browsers will show certificate errors on those domains.';
+                }
+            }
+            config.csrCerts = {
+                bundle: [serverCert, ...chain].map(c => forge.pki.certificateToPem(c)).join(''),
+                serverKey: forge.pki.privateKeyToPem(privateKey),
+                chain: chain.length ? chain.map(c => forge.pki.certificateToPem(c)).join('') : null
+            };
+
+            if (sanWarning) {
+                show(false, '⚠ ' + sanWarning);
+                return confirm('Warning: ' + sanWarning + '\n\nContinue anyway?');
+            }
+
+            show(true, '✓ Certificate matches the private key' +
+                (chain.length ? ' (+ ' + chain.length + ' chain certificate' + (chain.length > 1 ? 's' : '') + ' bundled)' : '') +
+                '. Expires ' + serverCert.validity.notAfter.toLocaleDateString() + '.');
+            return true;
+        }
+
+        function generateOwnCaNote() {
+            const hasChain = !!(config.csrCerts && config.csrCerts.chain);
+            return '# Certificates Signed by Your Own CA\n\n' +
+                '`twitter_bundle.pem` and `twitter_key.pem` in this directory were produced from the\n' +
+                'CSR workflow in the setup wizard and signed by your own CA.\n\n' +
+                'For the redirect to work without browser warnings, **every device that should be\n' +
+                'redirected must trust your CA\'s root certificate**. If your devices already trust it\n' +
+                '(for example, it is your organization\'s CA), nothing more is needed.\n\n' +
+                (hasChain
+                    ? 'The CA chain you pasted is included here as `ca.crt`. Install it on devices that do\n' +
+                      'not trust your CA yet - the per-OS steps in docs/SSL_SETUP_MKCERT.md apply to any\n' +
+                      'CA certificate.\n'
+                    : 'No CA chain was pasted into the wizard, so distribute your CA\'s root certificate\n' +
+                      'to devices yourself if they do not trust it yet.\n');
         }
 
         function generateOpensslConfigs() {
@@ -2186,6 +2491,11 @@ DNS.6 = *.t.co
                 content += '### 2. Generate SSL Certificates\n\n';
                 content += 'Follow the manual OpenSSL guide:\n';
                 content += 'See docs/SSL_SETUP.md for detailed instructions.\n\n';
+            } else if (config.ssl === 'csr') {
+                content += '### 2. SSL Certificates\n\n';
+                content += `Your CA-signed certificate and private key are already included at ${config.webServer}/ssl/.\n`;
+                content += 'Make sure the CA that signed them is trusted on every device that will use the redirect\n';
+                content += `(see ${config.webServer}/ssl/INSTALL_CA.md).\n\n`;
             }
 
             const stepNum = config.ssl === 'skip' ? 2 : 3;
@@ -2227,6 +2537,8 @@ DNS.6 = *.t.co
                 html += '<li>Install mkcert and generate certificates (see instructions)</li>';
             } else if (config.ssl === 'manual') {
                 html += '<li>Generate SSL certificates manually (see docs/SSL_SETUP.md)</li>';
+            } else if (config.ssl === 'csr') {
+                html += '<li>Ensure the CA that signed your certificate is trusted on all devices</li>';
             }
 
             html += `<li>Configure DNS to point domains to your proxy</li>`;
@@ -2511,6 +2823,14 @@ openssl req -new -key ca.key -out new_cert.csr
 ` : ''}
 `;
                         folder.file('nginx/ssl/INSTALL_CA.md', installGuide);
+                    } else if (config.ssl === 'csr' && config.csrCerts) {
+                        // Certificates signed by the user's own CA via the CSR workflow
+                        folder.file('nginx/ssl/twitter_bundle.pem', config.csrCerts.bundle);
+                        folder.file('nginx/ssl/twitter_key.pem', config.csrCerts.serverKey);
+                        if (config.csrCerts.chain) {
+                            folder.file('nginx/ssl/ca.crt', config.csrCerts.chain);
+                        }
+                        folder.file('nginx/ssl/INSTALL_CA.md', generateOwnCaNote());
                     }
                 } else if (config.webServer === 'caddy') {
                     // Add Caddyfile
@@ -2741,6 +3061,14 @@ openssl req -new -key ca.key -out new_cert.csr
 ` : ''}
 `;
                         folder.file('caddy/ssl/INSTALL_CA.md', installGuide);
+                    } else if (config.ssl === 'csr' && config.csrCerts) {
+                        // Certificates signed by the user's own CA via the CSR workflow
+                        folder.file('caddy/ssl/twitter_bundle.pem', config.csrCerts.bundle);
+                        folder.file('caddy/ssl/twitter_key.pem', config.csrCerts.serverKey);
+                        if (config.csrCerts.chain) {
+                            folder.file('caddy/ssl/ca.crt', config.csrCerts.chain);
+                        }
+                        folder.file('caddy/ssl/INSTALL_CA.md', generateOwnCaNote());
                     }
                 }
 
