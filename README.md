@@ -1,6 +1,6 @@
 # X/Twitter → xcancel Redirector
 
-Local network tool that transparently redirects all X/Twitter traffic to [xcancel.com](https://xcancel.com), allowing you to browse Twitter content without directly accessing X's servers.
+Local network tool that transparently redirects all X/Twitter traffic to [xcancel.com](https://xcancel.com) (or another Nitter instance of your choice), allowing you to browse Twitter content without directly accessing X's servers.
 
 ## What is xcancel?
 
@@ -116,6 +116,14 @@ curl -I http://twitter.com  # Should show 301 to xcancel.com
 **Full details**: See [docs/QUICKSTART.md](docs/QUICKSTART.md)
 
 ## Configuration Options
+
+### Redirect Target (Nitter Provider)
+
+- **xcancel.com** (default): Actively maintained, good uptime
+- **nitter.net / nitter.poast.org / nitter.space**: Other public instances
+- **Custom**: Any other instance URL, including self-hosted
+
+All three setup paths let you pick: the web wizard's "Choose Twitter Frontend" step, `./setup.sh --frontend=URL` (or its interactive prompt), and the CLI wizard's frontend question. Public instances come and go — re-run your setup path to switch if yours stops working.
 
 ### Web Server
 

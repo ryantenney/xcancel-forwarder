@@ -17,6 +17,7 @@ BOLD='\033[1m'
 NC='\033[0m' # No Color
 
 # Configuration variables
+FRONTEND_URL="https://xcancel.com"
 WEB_SERVER=""
 NETWORKING=""
 SSL_METHOD=""
@@ -227,6 +228,69 @@ detect_network_interfaces() {
 ###########################################
 # Interactive Configuration
 ###########################################
+
+# Normalize a frontend URL: trim, strip trailing slashes, assume https://
+# when no scheme is given. Prints the normalized URL, or nothing if invalid.
+normalize_frontend_url() {
+    local url
+    url=$(echo "$1" | tr -d '[:space:]' | sed 's:/*$::')
+
+    if [[ ! "$url" =~ ^https?:// ]]; then
+        url="https://$url"
+    fi
+
+    # scheme://host[.domain...][:port] - host must contain a dot (domain or IP)
+    if [[ "$url" =~ ^https?://[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+(:[0-9]+)?$ ]]; then
+        echo "$url"
+    fi
+}
+
+frontend_host() {
+    echo "${FRONTEND_URL#*://}"
+}
+
+configure_frontend() {
+    print_section "Twitter Frontend Selection"
+
+    if [ "$NON_INTERACTIVE" = true ]; then
+        print_info "Using frontend: $FRONTEND_URL"
+        return
+    fi
+
+    echo ""
+    echo "Which Nitter provider should X/Twitter traffic be redirected to?"
+    echo "  1) xcancel.com - Actively maintained, good uptime (recommended)"
+    echo "  2) nitter.net - The original Nitter instance"
+    echo "  3) nitter.poast.org - Long-running community instance"
+    echo "  4) nitter.space - Community instance"
+    echo "  5) Custom - Any other instance URL (including self-hosted)"
+    echo ""
+
+    PS3="Select frontend [1-5]: "
+    select choice in "xcancel.com" "nitter.net" "nitter.poast.org" "nitter.space" "Custom"; do
+        case $choice in
+            xcancel.com|nitter.net|nitter.poast.org|nitter.space)
+                FRONTEND_URL="https://$choice"
+                print_success "Selected: $choice"
+                break
+                ;;
+            Custom)
+                while true; do
+                    read -p "Enter instance URL (e.g., nitter.example.com): " input
+                    local normalized
+                    normalized=$(normalize_frontend_url "$input")
+                    if [ -n "$normalized" ]; then
+                        FRONTEND_URL="$normalized"
+                        print_success "Using custom frontend: $FRONTEND_URL"
+                        break
+                    fi
+                    print_error "Invalid URL format"
+                done
+                break
+                ;;
+        esac
+    done
+}
 
 configure_web_server() {
     print_section "Web Server Selection"
@@ -599,6 +663,7 @@ show_summary() {
     echo ""
     echo -e "${BOLD}Your Configuration:${NC}"
     echo ""
+    echo "  Frontend:      $FRONTEND_URL"
     echo "  Web Server:    $WEB_SERVER"
     echo "  Networking:    $NETWORKING"
     echo "  SSL:           $SSL_METHOD"
@@ -676,12 +741,12 @@ generate_configs() {
 generate_env_file() {
     print_verbose "Generating xcancel.env"
 
-    cat > "$OUTPUT_DIR/xcancel.env" <<'EOF'
+    cat > "$OUTPUT_DIR/xcancel.env" <<EOF
 # xcancel Environment Configuration
 # This file contains environment variables for the xcancel proxy service
 
 # Target URL for redirection
-XCANCEL_URL=https://xcancel.com
+XCANCEL_URL=$FRONTEND_URL
 
 # Add any additional environment variables here
 EOF
@@ -858,7 +923,7 @@ generate_caddyfile() {
 
     cat > "$caddyfile" <<EOF
 # Caddyfile for xcancel redirector
-# Redirects twitter.com, x.com, and t.co to xcancel.com
+# Redirects twitter.com, x.com, and t.co to $(frontend_host)
 
 twitter.com, www.twitter.com, mobile.twitter.com, api.twitter.com,
 x.com, www.x.com, mobile.x.com, api.x.com,
@@ -907,9 +972,9 @@ EOF
     fi
 
     # Add main redirect
-    cat >> "$caddyfile" <<'EOF'
-	# Redirect all traffic to xcancel.com
-	redir https://xcancel.com{uri} permanent
+    cat >> "$caddyfile" <<EOF
+	# Redirect all traffic to $(frontend_host)
+	redir ${FRONTEND_URL}{uri} permanent
 }
 EOF
 
@@ -924,9 +989,9 @@ generate_nginx_config() {
 
     local nginx_conf="$OUTPUT_DIR/nginx/conf.d/xcancel-redirect.conf"
 
-    cat > "$nginx_conf" <<'EOF'
+    cat > "$nginx_conf" <<EOF
 # nginx configuration for xcancel redirector
-# Redirects twitter.com, x.com, and t.co to xcancel.com
+# Redirects twitter.com, x.com, and t.co to $(frontend_host)
 
 EOF
 
@@ -978,10 +1043,10 @@ $server_addr t.co
 EOF
         fi
 
-        cat >> "$nginx_conf" <<'EOF'
-    # Redirect all traffic to xcancel.com
+        cat >> "$nginx_conf" <<EOF
+    # Redirect all traffic to $(frontend_host)
     location / {
-        return 301 https://xcancel.com$request_uri;
+        return 301 ${FRONTEND_URL}\$request_uri;
     }
 }
 
@@ -1009,10 +1074,10 @@ EOF
 EOF
     else
         # Direct HTTP redirect
-        cat >> "$nginx_conf" <<'EOF'
-    # Redirect all traffic to xcancel.com (HTTP-only)
+        cat >> "$nginx_conf" <<EOF
+    # Redirect all traffic to $(frontend_host) (HTTP-only)
     location / {
-        return 301 https://xcancel.com$request_uri;
+        return 301 ${FRONTEND_URL}\$request_uri;
     }
 }
 EOF
@@ -1057,6 +1122,7 @@ generate_hosts_file() {
     cat > "$OUTPUT_DIR/hosts.txt" <<EOF
 # X/Twitter → xcancel hosts file
 # Add this file's entries to your DNS server or /etc/hosts
+# All traffic will be redirected to $(frontend_host)
 
 $DOCKER_HOST_IP twitter.com
 $DOCKER_HOST_IP www.twitter.com
@@ -1647,6 +1713,7 @@ curl -k https://twitter.com
 
 ## Configuration Details
 
+- **Frontend**: $FRONTEND_URL
 - **Web Server**: $WEB_SERVER
 - **Networking**: $NETWORKING
 - **SSL Method**: $SSL_METHOD
@@ -1711,6 +1778,7 @@ load_config_file() {
 
         # Set variables
         case "$key" in
+            frontend_url) FRONTEND_URL="$value" ;;
             web_server) WEB_SERVER="$value" ;;
             networking) NETWORKING="$value" ;;
             ssl_method) SSL_METHOD="$value" ;;
@@ -1744,6 +1812,7 @@ save_config_file() {
 # xcancel Setup Configuration
 # Generated on $(date)
 
+frontend_url=$FRONTEND_URL
 web_server=$WEB_SERVER
 networking=$NETWORKING
 ssl_method=$SSL_METHOD
@@ -1808,6 +1877,14 @@ start_services() {
 parse_args() {
     while [[ $# -gt 0 ]]; do
         case $1 in
+            --frontend=*)
+                FRONTEND_URL=$(normalize_frontend_url "${1#*=}")
+                if [ -z "$FRONTEND_URL" ]; then
+                    print_error "Invalid frontend URL: ${1#*=}"
+                    exit 1
+                fi
+                shift
+                ;;
             --web-server=*)
                 WEB_SERVER="${1#*=}"
                 shift
@@ -1885,6 +1962,8 @@ OPTIONS:
 
   Non-Interactive Mode:
     --non-interactive           Skip all prompts (requires other flags)
+    --frontend=URL              Nitter instance to redirect to
+                                (default: https://xcancel.com)
     --web-server=SERVER         Web server: caddy or nginx
     --networking=MODE           Networking: bridge or macvlan
     --ssl=METHOD                SSL method: auto, mkcert, manual, or skip
@@ -1915,6 +1994,9 @@ EXAMPLES:
              --networking=bridge \\
              --ssl=auto \\
              --dns=pihole
+
+  # Redirect to a different Nitter instance
+  ./setup.sh --frontend=nitter.net
 
   # Load configuration and start
   ./setup.sh --config=my-setup.conf --start
@@ -1950,6 +2032,7 @@ main() {
 
     # Run configuration if not fully specified
     if [ "$NON_INTERACTIVE" = false ] || [ -z "$WEB_SERVER" ] || [ -z "$NETWORKING" ] || [ -z "$SSL_METHOD" ] || [ -z "$DNS_METHOD" ]; then
+        configure_frontend
         configure_web_server
         configure_networking
         configure_ssl

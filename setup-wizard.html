@@ -357,7 +357,7 @@
             <!-- Step 1: Welcome -->
             <div class="step active" id="step1">
                 <h2>Welcome!</h2>
-                <p>This wizard will help you configure your local network to transparently redirect all X/Twitter traffic to xcancel.com - a privacy-respecting Twitter frontend.</p>
+                <p>This wizard will help you configure your local network to transparently redirect all X/Twitter traffic to a privacy-respecting Twitter frontend such as xcancel.com - you'll pick which one in the next step.</p>
 
                 <div class="info-box">
                     <strong>What is xcancel?</strong><br>
@@ -366,6 +366,7 @@
 
                 <p>We'll walk through:</p>
                 <ul style="margin-left: 20px; line-height: 2;">
+                    <li>Choosing your Twitter frontend (Nitter provider)</li>
                     <li>Choosing your web server (nginx or Caddy)</li>
                     <li>Network configuration</li>
                     <li>SSL certificate setup</li>
@@ -375,6 +376,72 @@
                 <div class="buttons">
                     <button class="btn-back" disabled>Back</button>
                     <button class="btn-next" onclick="nextStep()">Get Started</button>
+                </div>
+            </div>
+
+            <!-- Step 1.5: Twitter Frontend (Nitter provider) -->
+            <div class="step" id="step1_5">
+                <h2>Choose Twitter Frontend</h2>
+                <p>Which Nitter provider should X/Twitter traffic be redirected to?</p>
+
+                <div class="option-group">
+                    <div class="option selected" onclick="selectOption('frontend', 'xcancel.com', this); toggleConditional('customFrontendConfig', false)">
+                        <input type="radio" name="frontend" value="xcancel.com" checked>
+                        <div>
+                            <h3>xcancel.com (Recommended)</h3>
+                            <p class="desc">Actively maintained Nitter instance with good uptime</p>
+                        </div>
+                    </div>
+
+                    <div class="option" onclick="selectOption('frontend', 'nitter.net', this); toggleConditional('customFrontendConfig', false)">
+                        <input type="radio" name="frontend" value="nitter.net">
+                        <div>
+                            <h3>nitter.net</h3>
+                            <p class="desc">The original Nitter instance</p>
+                        </div>
+                    </div>
+
+                    <div class="option" onclick="selectOption('frontend', 'nitter.poast.org', this); toggleConditional('customFrontendConfig', false)">
+                        <input type="radio" name="frontend" value="nitter.poast.org">
+                        <div>
+                            <h3>nitter.poast.org</h3>
+                            <p class="desc">Long-running community instance</p>
+                        </div>
+                    </div>
+
+                    <div class="option" onclick="selectOption('frontend', 'nitter.space', this); toggleConditional('customFrontendConfig', false)">
+                        <input type="radio" name="frontend" value="nitter.space">
+                        <div>
+                            <h3>nitter.space</h3>
+                            <p class="desc">Community instance</p>
+                        </div>
+                    </div>
+
+                    <div class="option" onclick="selectOption('frontend', 'custom', this); toggleConditional('customFrontendConfig', true)">
+                        <input type="radio" name="frontend" value="custom">
+                        <div>
+                            <h3>Custom Instance</h3>
+                            <p class="desc">Enter the URL of any other Nitter instance (including self-hosted)</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="conditional" id="customFrontendConfig">
+                    <h3>Custom Instance URL</h3>
+                    <div class="form-group">
+                        <label>Instance URL</label>
+                        <input type="text" id="customFrontendUrl" placeholder="e.g., nitter.example.com or http://192.168.1.50:8080">
+                        <div class="hint">https:// is assumed if you don't specify a scheme</div>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <strong>Instances come and go.</strong> Public Nitter instances are community-run and availability changes over time. If your chosen instance stops working, re-run this wizard or edit the redirect URL in your generated web server config to switch.
+                </div>
+
+                <div class="buttons">
+                    <button class="btn-back" onclick="prevStep()">Back</button>
+                    <button class="btn-next" onclick="nextStep()">Next</button>
                 </div>
             </div>
 
@@ -812,6 +879,10 @@
                 <div class="review-section">
                     <h3>Your Configuration</h3>
                     <div class="review-item">
+                        <span class="label">Frontend:</span>
+                        <span class="value" id="reviewFrontend"></span>
+                    </div>
+                    <div class="review-item">
                         <span class="label">Web Server:</span>
                         <span class="value" id="reviewWebServer"></span>
                     </div>
@@ -852,13 +923,30 @@
         const stepGraph = {
             welcome: {
                 id: 'step1',
-                next: () => 'webServer',
+                next: () => 'frontend',
                 prev: () => null
+            },
+            frontend: {
+                id: 'step1_5',
+                next: () => 'webServer',
+                prev: () => 'welcome',
+                validate: () => {
+                    if (config.frontend !== 'custom') return true;
+                    const input = document.getElementById('customFrontendUrl');
+                    const normalized = normalizeFrontendUrl(input.value);
+                    if (!normalized) {
+                        alert('Please enter a valid instance URL (e.g., nitter.example.com)');
+                        input.focus();
+                        return false;
+                    }
+                    config.customFrontendUrl = normalized;
+                    return true;
+                }
             },
             webServer: {
                 id: 'step2',
                 next: () => 'networking',
-                prev: () => 'welcome'
+                prev: () => 'frontend'
             },
             networking: {
                 id: 'step3',
@@ -934,11 +1022,13 @@
         };
 
         // Ordered list of all steps for progress calculation
-        const allSteps = ['welcome', 'webServer', 'networking', 'ssl', 'generateCerts', 'dns', 'upstreamDns', 'review'];
+        const allSteps = ['welcome', 'frontend', 'webServer', 'networking', 'ssl', 'generateCerts', 'dns', 'upstreamDns', 'review'];
 
         let currentStep = 'welcome';
         let navigationHistory = []; // Breadcrumbs stack for back navigation
         const config = {
+            frontend: 'xcancel.com',
+            customFrontendUrl: null,
             webServer: 'caddy',
             networking: 'bridge',
             ssl: 'generate',
@@ -946,6 +1036,36 @@
             upstreamDns: 'cloudflare',
             caKeyHandling: 'discard'
         };
+
+        // Accepts "nitter.example.com", "https://nitter.example.com/", "http://192.168.1.50:8080"
+        // Pasted URLs with a path (e.g. a tweet link) are trimmed to their origin.
+        function normalizeFrontendUrl(raw) {
+            let url = (raw || '').trim();
+            if (!url) return null;
+            if (!/^https?:\/\//i.test(url)) {
+                url = 'https://' + url;
+            }
+            try {
+                const parsed = new URL(url);
+                if (!parsed.hostname || !parsed.hostname.includes('.')) {
+                    return null;
+                }
+                return parsed.origin;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function getFrontendUrl() {
+            if (config.frontend === 'custom') {
+                return config.customFrontendUrl || 'https://xcancel.com';
+            }
+            return 'https://' + config.frontend;
+        }
+
+        function getFrontendHost() {
+            return getFrontendUrl().replace(/^https?:\/\//i, '');
+        }
 
         function updateProgress() {
             // Calculate progress based on position in flow
@@ -1054,10 +1174,8 @@
             if (key === 'ssl') {
                 const manualOpensslOptions = document.getElementById('manualOpensslOptions');
 
-                if (value === 'manual') {
-                    manualOpensslOptions.style.display = 'block';
-                } else {
-                    manualOpensslOptions.style.display = 'none';
+                if (manualOpensslOptions) {
+                    manualOpensslOptions.style.display = value === 'manual' ? 'block' : 'none';
                 }
             }
 
@@ -1139,6 +1257,7 @@
                 }
             };
 
+            document.getElementById('reviewFrontend').textContent = getFrontendHost() + (config.frontend === 'custom' ? ' (custom)' : '');
             document.getElementById('reviewWebServer').textContent = friendlyNames.webServer[config.webServer] || config.webServer;
             document.getElementById('reviewNetworking').textContent = friendlyNames.networking[config.networking] || config.networking;
             document.getElementById('reviewSsl').textContent = friendlyNames.ssl[config.ssl] || config.ssl;
@@ -1744,6 +1863,8 @@ DNS.6 = *.t.co
         function generateEnvFile() {
             let content = '# X/Twitter → xcancel Configuration\n';
             content += '# Generated by setup wizard\n\n';
+            content += '# Redirect target (Nitter/Twitter frontend)\n';
+            content += `XCANCEL_URL=${getFrontendUrl()}\n\n`;
             content += '# Timezone\n';
             content += 'TZ=America/New_York\n\n';
 
@@ -1875,7 +1996,7 @@ DNS.6 = *.t.co
             content += '# Domain Mappings:\n';
             content += '#\n';
             content += '# These entries redirect X/Twitter domains to your local xcancel proxy.\n';
-            content += '# All traffic will be redirected to xcancel.com instead.\n';
+            content += `# All traffic will be redirected to ${getFrontendHost()} instead.\n`;
             content += '#\n\n';
 
             // Add the actual hosts entries
@@ -2035,6 +2156,7 @@ DNS.6 = *.t.co
         function generateInstructions() {
             let content = '# X/Twitter → xcancel Setup Instructions\n\n';
             content += '## Configuration Summary\n\n';
+            content += `- Frontend: ${getFrontendHost()}\n`;
             content += `- Web Server: ${config.webServer}\n`;
             content += `- Networking: ${config.networking}\n`;
             content += `- SSL: ${config.ssl}\n`;
@@ -2153,7 +2275,7 @@ DNS.6 = *.t.co
                 // Add web server configuration files
                 if (config.webServer === 'nginx') {
                     // Add nginx config
-                    let nginxConfig = `# Catches twitter/x hostnames and anything else (default_server) and 301s to xcancel.com
+                    let nginxConfig = `# Catches twitter/x hostnames and anything else (default_server) and 301s to ${getFrontendHost()}
 server {
     ssl_protocols TLSv1.2 TLSv1.3;
 
@@ -2206,7 +2328,7 @@ $server_addr t.co
 
                     nginxConfig += `
     location / {
-        return 301 https://xcancel.com$request_uri;
+        return 301 ${getFrontendUrl()}$request_uri;
     }
 }
 `;
@@ -2392,7 +2514,7 @@ openssl req -new -key ca.key -out new_cert.csr
                     }
                 } else if (config.webServer === 'caddy') {
                     // Add Caddyfile
-                    let caddyConfig = `# Caddy configuration for X/Twitter → xcancel redirect
+                    let caddyConfig = `# Caddy configuration for X/Twitter → ${getFrontendHost()} redirect
 # Much simpler than nginx!
 
 # Handle all Twitter/X domains
@@ -2430,8 +2552,8 @@ twitter.com, www.twitter.com, x.com, www.x.com, t.co, www.t.co {
                     }
 
                     caddyConfig += `
-	# Redirect to xcancel, preserving the URI path
-	redir https://xcancel.com{uri} permanent
+	# Redirect to ${getFrontendHost()}, preserving the URI path
+	redir ${getFrontendUrl()}{uri} permanent
 }
 
 # That's it! Caddy automatically handles:

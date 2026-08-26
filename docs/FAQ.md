@@ -246,7 +246,7 @@ Most setups only need IPv4 since Twitter/X typically accessed via IPv4. See [DNS
 **Solutions**:
 
 1. **Wait**: xcancel may come back online
-2. **Switch frontend**: Change redirect URL in nginx config to different Twitter frontend (nitter, etc.)
+2. **Switch frontend**: Re-run a setup wizard and pick a different Nitter provider (the web wizard, `./setup.sh --frontend=nitter.net`, or `scripts/setup-wizard.py`), or change the redirect URL in your nginx/Caddy config by hand
 3. **Temporarily disable**: Stop nginx to access Twitter directly
 
 ### How much bandwidth/resources does this use?
